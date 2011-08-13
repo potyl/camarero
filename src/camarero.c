@@ -1,9 +1,9 @@
 #include <libsoup/soup.h>
-#include <stdio.h>
+#include <glib/gprintf.h>
+#include <glib/gstdio.h>
+
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <string.h>
 
 
 static void
@@ -16,8 +16,9 @@ server_callback (
     int status;
 
     // Get the file size
-    struct stat st;
-    if (stat (path, &st) == -1) {
+    GStatBuf st;
+    int code = g_stat(path, &st);
+    if (code == -1) {
         switch (errno) {
             case EPERM:
                 status = SOUP_STATUS_FORBIDDEN;
@@ -35,9 +36,9 @@ server_callback (
     }
 
     // Slurp the file and return it
-    int fd = open(path, O_RDONLY);
+    int fd = g_open(path, O_RDONLY);
     if (fd == -1) {
-        printf("Can't open %s; %s\n", path, strerror(errno));
+        g_printf("Can't open %s; %s\n", path, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
@@ -49,7 +50,7 @@ server_callback (
 
     DONE:
         soup_message_set_status(msg, status);
-        printf("Request for %s return status code %d\n", path, status);
+        g_printf("Request for %s return status code %d\n", path, status);
 
     return;
 }
@@ -67,10 +68,10 @@ main (int argc, char ** argv) {
     );
 
     soup_server_add_handler(server, NULL, server_callback, NULL, NULL);
-    printf("\nStarting Server on port %d\n", soup_server_get_port (server));
-    soup_server_run_async (server);
+    g_printf("\nStarting Server on port %d\n", soup_server_get_port(server));
+    soup_server_run_async(server);
 
-    GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+    GMainLoop *loop = g_main_loop_new(NULL, TRUE);
     g_main_loop_run(loop);
 
     return 0;
