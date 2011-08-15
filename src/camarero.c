@@ -4,6 +4,16 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <string.h>
+
+
+static int
+array_sort_str (gconstpointer a, gconstpointer b) {
+	const char **sa = (const char **)a;
+	const char **sb = (const char **)b;
+	return g_strcmp0(*sa, *sb);
+}
 
 
 static void
@@ -32,6 +42,66 @@ server_callback (
                 status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
             break;
         }
+        goto DONE;
+    }
+
+    // If we're dealing with a folder do a directory listing
+    if (S_ISDIR(st.st_mode)) {
+        DIR *dir = opendir(path);
+        if (dir == NULL) {
+            g_printf("Failed to read directory %s; %s\n", path, g_strerror(errno));
+            status = SOUP_STATUS_FORBIDDEN;
+            goto DONE;
+        }
+
+        // Get the folder's contents and sort then by name
+        GPtrArray *array = g_ptr_array_new();
+        struct dirent *dentry;
+        while ( (dentry = readdir(dir)) != NULL ) {
+            if (dentry->d_name[0] == '.') {continue;}
+            g_ptr_array_add(array, (gpointer) dentry->d_name);
+        }
+        closedir(dir);
+
+        g_ptr_array_sort(array, (GCompareFunc) array_sort_str);
+
+
+        // Build an HTML page with the folder contents
+        GString *buffer = g_string_new_len(NULL, 4096);
+        g_string_append_printf(buffer, "<html><head><title>Dir %s</title></head><body>\n", path);
+        g_string_append_printf(buffer, "<h1>Dir %s</h1>\n", path);
+
+        if (array->len) {
+            char *lastSlash = strrchr(path, '/');
+            g_printf("Last stash: '%s'\n", lastSlash);
+            g_printf("Last is NULL: '%s'\n", lastSlash == NULL ? "YES" : "NO");
+            g_printf("Last is 0: '%s' %x %c\n", lastSlash[1] != '\0'  ? "YES" : "NO", lastSlash[1], lastSlash[1]);
+            const char *separator = (lastSlash == NULL || lastSlash[1] != '\0') ? "/" : "";
+            g_printf("separator: '%s'\n", separator);
+
+            g_string_append_printf(buffer, "<p>has %d files</p>\n<ul>\n", array->len);
+            for (guint i = 0; i < array->len; ++i) {
+                char *name = (char *) array->pdata[i];
+                g_string_append_printf(buffer, "  <li><a href='%s%s%s'>%s</li>\n",
+                    g_uri_escape_string(path, "/", TRUE),
+                    separator,
+                    g_uri_escape_string(name, "/", TRUE),
+                    name
+                );
+            }
+             g_string_append(buffer, "<ul>\n");
+        }
+        else {
+             g_string_append(buffer, "<p>is empty.</p>\n");
+        }
+        g_ptr_array_free(array, TRUE);
+
+        g_string_append(buffer, "</body></html>\n");
+
+        soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, buffer->str, buffer->len);
+        status = SOUP_STATUS_OK;
+        g_string_free(buffer, FALSE);
+
         goto DONE;
     }
 
