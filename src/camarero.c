@@ -6,6 +6,21 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <string.h>
+#include <sys/mman.h>
+
+
+typedef struct _Memmap {
+    void   *mem;
+    size_t length;
+} Memmap;
+
+
+static void
+memmap_free (gpointer data) {
+    Memmap *memmap = (Memmap *) data;
+    munmap(memmap->mem, memmap->length);
+    g_slice_free(Memmap, memmap);
+}
 
 
 static int
@@ -105,17 +120,44 @@ server_callback (
         goto DONE;
     }
 
-    // Slurp the file and return it
+
+    // Spit the content's of the file down the pipe
     int fd = g_open(path, O_RDONLY);
     if (fd == -1) {
         g_printf("Can't open %s; %s\n", path, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
-    gchar *buffer = g_malloc(st.st_size);
-    read(fd, buffer, st.st_size);
-    close(fd);
-    soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, buffer, st.st_size);
+
+
+    // Use mmap for sending the file
+    Memmap *memmap = g_slice_new(Memmap);
+    memmap->length = st.st_size;
+    memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (memmap->mem == MAP_FAILED) {
+        g_slice_free(Memmap, memmap);
+        g_printf("Can't mmap %s; %s\n", path, g_strerror(errno));
+        status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
+        goto DONE;
+    }
+
+    SoupBuffer *buffer = soup_buffer_new_with_owner(
+        memmap->mem,
+        memmap->length,
+        memmap,
+        memmap_free
+    );
+    soup_message_body_append_buffer(msg->response_body, buffer);
+    soup_buffer_free(buffer); // It's more of an unref() than a free()
+
+    // Slurp the file's content
+    if (0) {
+        gchar *buffer = g_malloc(st.st_size);
+        read(fd, buffer, st.st_size);
+        close(fd);
+        soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, buffer, st.st_size);
+    }
+
     status = SOUP_STATUS_OK;
 
     DONE:
