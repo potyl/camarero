@@ -89,10 +89,10 @@ server_callback (
                     name
                 );
             }
-             g_string_append(buffer, "<ul>\n");
+            g_string_append(buffer, "<ul>\n");
         }
         else {
-             g_string_append(buffer, "<p>is empty.</p>\n");
+            g_string_append(buffer, "<p>is empty.</p>\n");
         }
         g_ptr_array_free(array, TRUE);
 
