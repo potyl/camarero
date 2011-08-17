@@ -21,7 +21,7 @@ typedef struct _Memmap {
 
 
 typedef struct _App {
-    GMainLoop *loop;
+    SoupServer *server;
 } App;
 App APP = {0,};
 
@@ -183,8 +183,8 @@ static void
 signal_end (int signal)
 {
     g_printf("Server shutting down\n");
-    if (APP.loop != NULL) {
-        g_main_loop_quit(APP.loop);
+    if (APP.server != NULL) {
+        soup_server_quit(APP.server);
         return;
     }
 
@@ -219,8 +219,17 @@ main (int argc, char ** argv) {
     int rc;
     while ( (rc = getopt_long(argc, argv, "phv", longopts, NULL)) != -1 ) {
         switch (rc) {
-            case 'd':
-                port = (unsigned int) strtol(optarg, NULL, 10);
+            case 'p':
+                {
+                    unsigned int val = (unsigned int) g_ascii_strtoull(optarg, NULL, 10);
+                    if (val) {
+                        g_printf("Parsing port %d\n", val);
+                        port = val;
+                    }
+                    else {
+                        g_printf("Can't parse port: %s\n", optarg);
+                    }
+                }
             break;
 
             case 'h':
@@ -243,18 +252,20 @@ main (int argc, char ** argv) {
     signal(SIGQUIT, signal_end);
     signal(SIGINT, signal_end);
 
-    SoupServer *server = soup_server_new(
+    APP.server = soup_server_new(
         SOUP_SERVER_PORT, port,
         SOUP_SERVER_SERVER_HEADER, "simple-httpd ",
         NULL
     );
 
-    soup_server_add_handler(server, NULL, server_callback, NULL, NULL);
-    g_printf("\nStarting Server on port %d\n", soup_server_get_port(server));
-    soup_server_run_async(server);
+    if (APP.server == NULL) {
+        g_printf("Failed to create the server\n");
+        return 1;
+    }
 
-    APP.loop = g_main_loop_new(NULL, TRUE);
-    g_main_loop_run(APP.loop);
+    soup_server_add_handler(APP.server, NULL, server_callback, NULL, NULL);
+    g_printf("Starting Server on port %d\n", soup_server_get_port(APP.server));
+    soup_server_run(APP.server);
 
     g_printf("Done\n");
 
