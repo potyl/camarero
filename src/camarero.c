@@ -108,12 +108,17 @@ camarero_server_callback (
             g_string_append_printf(buffer, "<p>has %d files</p>\n<ul>\n", array->len);
             for (guint i = 0; i < array->len; ++i) {
                 char *name = (char *) array->pdata[i];
+                char *u_path = g_uri_escape_string(path, "/", TRUE);
+                char *u_name = g_uri_escape_string(name, "/", TRUE);
+
                 g_string_append_printf(buffer, "  <li><a href='%s%s%s'>%s</li>\n",
-                    g_uri_escape_string(path, "/", TRUE),
+                    u_path,
                     separator,
-                    g_uri_escape_string(name, "/", TRUE),
+                    u_name,
                     name
                 );
+                g_free(u_path);
+                g_free(u_name);
             }
             g_string_append(buffer, "<ul>\n");
         }
