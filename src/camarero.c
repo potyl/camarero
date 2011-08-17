@@ -10,6 +10,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <unistd.h>
+#include <sys/param.h>
 
 #include "config.h"
 
@@ -21,7 +23,8 @@ typedef struct _CamareroMemmap {
 
 
 typedef struct _CamareroApp {
-    SoupServer *server;
+    SoupServer  *server;
+    char root [MAXPATHLEN + 1];
 } CamareroApp;
 CamareroApp APP = {0,};
 
@@ -48,12 +51,13 @@ camarero_server_callback (
     const char *path, GHashTable *query,
     SoupClientContext *context, gpointer data
 ) {
-
     int status;
+
+    gchar *rpath = g_build_filename(APP.root, path, NULL);
 
     // Get the file size
     GStatBuf st;
-    int code = g_stat(path, &st);
+    int code = g_stat(rpath, &st);
     if (code == -1) {
         switch (errno) {
             case EPERM:
@@ -73,9 +77,9 @@ camarero_server_callback (
 
     // If we're dealing with a folder do a directory listing
     if (S_ISDIR(st.st_mode)) {
-        DIR *dir = opendir(path);
+        DIR *dir = opendir(rpath);
         if (dir == NULL) {
-            g_printf("Failed to read directory %s; %s\n", path, g_strerror(errno));
+            g_printf("Failed to read directory %s; %s\n", rpath, g_strerror(errno));
             status = SOUP_STATUS_FORBIDDEN;
             goto DONE;
         }
@@ -129,9 +133,9 @@ camarero_server_callback (
 
 
     // Spit the content's of the file down the pipe
-    int fd = g_open(path, O_RDONLY);
+    int fd = g_open(rpath, O_RDONLY);
     if (fd == -1) {
-        g_printf("Can't open %s; %s\n", path, g_strerror(errno));
+        g_printf("Can't open %s; %s\n", rpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
@@ -143,7 +147,7 @@ camarero_server_callback (
     memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (memmap->mem == MAP_FAILED) {
         g_slice_free(CamareroMemmap, memmap);
-        g_printf("Can't mmap %s; %s\n", path, g_strerror(errno));
+        g_printf("Can't mmap %s; %s\n", rpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
@@ -160,6 +164,7 @@ camarero_server_callback (
     status = SOUP_STATUS_OK;
 
     DONE:
+        if (rpath != NULL) g_free(rpath);
         soup_message_set_status(msg, status);
         g_printf("Request for %s return status code %d\n", path, status);
 
@@ -232,6 +237,14 @@ main (int argc, char ** argv) {
     }
     argc -= optind;
     argv += optind;
+
+    if (argc > 1) {
+        memcpy(APP.root, argv[1], strlen(argv[1]));
+    }
+    else {
+        getcwd(APP.root, sizeof(APP.root));
+    }
+    printf("Root folder is %s\n", APP.root);
 
     g_thread_init(NULL);
     g_type_init();
