@@ -9,8 +9,8 @@ COMPILER=$(CC) $(CFLAGS) $(LIBS)
 all: camarero
 
 
-camarero: src/camarero.c
-	$(COMPILER) -o $@ $<
+camarero: src/camarero.c src/config.h
+	$(COMPILER) -Isrc -o $@ $<
 
 
 .PHONEY: clean

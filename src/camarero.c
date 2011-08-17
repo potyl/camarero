@@ -10,6 +10,8 @@
 #include <signal.h>
 #include <stdlib.h>
 
+#include "config.h"
+
 
 typedef struct _Memmap {
     void   *mem;
