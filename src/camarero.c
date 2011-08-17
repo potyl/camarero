@@ -161,14 +161,6 @@ camarero_server_callback (
     soup_message_body_append_buffer(msg->response_body, buffer);
     soup_buffer_free(buffer); // It's more of an unref() than a free()
 
-    // Slurp the file's content
-    if (0) {
-        gchar *buffer = g_malloc(st.st_size);
-        read(fd, buffer, st.st_size);
-        close(fd);
-        soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, buffer, st.st_size);
-    }
-
     status = SOUP_STATUS_OK;
 
     DONE:
