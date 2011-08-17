@@ -7,12 +7,20 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <signal.h>
+#include <stdlib.h>
 
 
 typedef struct _Memmap {
     void   *mem;
     size_t length;
 } Memmap;
+
+
+typedef struct _App {
+    GMainLoop *loop;
+} App;
+App APP = {0,};
 
 
 static void
@@ -168,10 +176,28 @@ server_callback (
 }
 
 
+static void
+signal_end (int signal)
+{
+    g_printf("Server shutting down\n");
+    if (APP.loop != NULL) {
+        g_main_loop_quit(APP.loop);
+        return;
+    }
+
+    exit(0);
+}
+
+
 int
 main (int argc, char ** argv) {
     g_thread_init(NULL);
     g_type_init();
+
+    signal(SIGTERM, signal_end);
+    signal(SIGQUIT, signal_end);
+    signal(SIGINT, signal_end);
+
 
     SoupServer *server = soup_server_new(
         SOUP_SERVER_PORT, 3000,
@@ -183,8 +209,10 @@ main (int argc, char ** argv) {
     g_printf("\nStarting Server on port %d\n", soup_server_get_port(server));
     soup_server_run_async(server);
 
-    GMainLoop *loop = g_main_loop_new(NULL, TRUE);
-    g_main_loop_run(loop);
+    APP.loop = g_main_loop_new(NULL, TRUE);
+    g_main_loop_run(APP.loop);
+
+    g_printf("Done\n");
 
     return 0;
 }
