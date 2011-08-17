@@ -14,28 +14,28 @@
 #include "config.h"
 
 
-typedef struct _Memmap {
+typedef struct _CamareroMemmap {
     void   *mem;
     size_t length;
-} Memmap;
+} CamareroMemmap;
 
 
-typedef struct _App {
+typedef struct _CamareroApp {
     SoupServer *server;
-} App;
-App APP = {0,};
+} CamareroApp;
+CamareroApp APP = {0,};
 
 
 static void
-memmap_free (gpointer data) {
-    Memmap *memmap = (Memmap *) data;
+camarero_memmap_free (gpointer data) {
+    CamareroMemmap *memmap = (CamareroMemmap *) data;
     munmap(memmap->mem, memmap->length);
-    g_slice_free(Memmap, memmap);
+    g_slice_free(CamareroMemmap, memmap);
 }
 
 
 static int
-array_sort_str (gconstpointer a, gconstpointer b) {
+camarero_array_sort_str (gconstpointer a, gconstpointer b) {
 	const char **sa = (const char **)a;
 	const char **sb = (const char **)b;
 	return g_strcmp0(*sa, *sb);
@@ -43,7 +43,7 @@ array_sort_str (gconstpointer a, gconstpointer b) {
 
 
 static void
-server_callback (
+camarero_server_callback (
     SoupServer *server, SoupMessage *msg,
     const char *path, GHashTable *query,
     SoupClientContext *context, gpointer data
@@ -89,7 +89,7 @@ server_callback (
         }
         closedir(dir);
 
-        g_ptr_array_sort(array, (GCompareFunc) array_sort_str);
+        g_ptr_array_sort(array, (GCompareFunc) camarero_array_sort_str);
 
 
         // Build an HTML page with the folder contents
@@ -142,11 +142,11 @@ server_callback (
 
 
     // Use mmap for sending the file
-    Memmap *memmap = g_slice_new(Memmap);
+    CamareroMemmap *memmap = g_slice_new(CamareroMemmap);
     memmap->length = st.st_size;
     memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (memmap->mem == MAP_FAILED) {
-        g_slice_free(Memmap, memmap);
+        g_slice_free(CamareroMemmap, memmap);
         g_printf("Can't mmap %s; %s\n", path, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
@@ -156,7 +156,7 @@ server_callback (
         memmap->mem,
         memmap->length,
         memmap,
-        memmap_free
+        camarero_memmap_free
     );
     soup_message_body_append_buffer(msg->response_body, buffer);
     soup_buffer_free(buffer); // It's more of an unref() than a free()
@@ -180,7 +180,7 @@ server_callback (
 
 
 static void
-signal_end (int signal)
+camarero_signal_end (int signal)
 {
     g_printf("Server shutting down\n");
     if (APP.server != NULL) {
@@ -192,8 +192,8 @@ signal_end (int signal)
 }
 
 
-static
-int usage() {
+static int
+camarero_usage() {
 	g_printf(
 		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER...\n"
 		"Where OPTION is one of:\n"
@@ -233,7 +233,7 @@ main (int argc, char ** argv) {
             break;
 
             case 'h':
-                return usage();
+                return camarero_usage();
             break;
 
             case 'v':
@@ -248,22 +248,21 @@ main (int argc, char ** argv) {
     g_thread_init(NULL);
     g_type_init();
 
-    signal(SIGTERM, signal_end);
-    signal(SIGQUIT, signal_end);
-    signal(SIGINT, signal_end);
+    signal(SIGTERM, camarero_signal_end);
+    signal(SIGQUIT, camarero_signal_end);
+    signal(SIGINT,  camarero_signal_end);
 
     APP.server = soup_server_new(
         SOUP_SERVER_PORT, port,
         SOUP_SERVER_SERVER_HEADER, "simple-httpd ",
         NULL
     );
-
     if (APP.server == NULL) {
         g_printf("Failed to create the server\n");
         return 1;
     }
 
-    soup_server_add_handler(APP.server, NULL, server_callback, NULL, NULL);
+    soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
     g_printf("Starting Server on port %d\n", soup_server_get_port(APP.server));
     soup_server_run(APP.server);
 
