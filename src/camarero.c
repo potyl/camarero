@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 #include "config.h"
 
@@ -191,8 +192,50 @@ signal_end (int signal)
 }
 
 
+static
+int usage() {
+	g_printf(
+		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER...\n"
+		"Where OPTION is one of:\n"
+		"   -p, --port=PORT   the server's port\n"
+		"   -v, --version     show the program's version\n"
+		"   -h, --help        print this help message\n"
+	);
+	return 1;
+}
+
+
 int
 main (int argc, char ** argv) {
+
+    struct option longopts [] = {
+        { "port",       required_argument, NULL, 'p' },
+        { "help",       no_argument,       NULL, 'h' },
+        { "version",    no_argument,       NULL, 'v' },
+        { NULL, 0, NULL, 0 },
+    };
+
+    unsigned int port = 3000;
+    int rc;
+    while ( (rc = getopt_long(argc, argv, "phv", longopts, NULL)) != -1 ) {
+        switch (rc) {
+            case 'd':
+                port = (unsigned int) strtol(optarg, NULL, 10);
+            break;
+
+            case 'h':
+                return usage();
+            break;
+
+            case 'v':
+                g_printf("%s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+                return 0;
+            break;
+        }
+    }
+    argc -= optind;
+    argv += optind;
+
     g_thread_init(NULL);
     g_type_init();
 
@@ -200,9 +243,8 @@ main (int argc, char ** argv) {
     signal(SIGQUIT, signal_end);
     signal(SIGINT, signal_end);
 
-
     SoupServer *server = soup_server_new(
-        SOUP_SERVER_PORT, 3000,
+        SOUP_SERVER_PORT, port,
         SOUP_SERVER_SERVER_HEADER, "simple-httpd ",
         NULL
     );
