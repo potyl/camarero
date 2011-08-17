@@ -52,6 +52,7 @@ camarero_server_callback (
     SoupClientContext *context, gpointer data
 ) {
     int status;
+    gchar *error_str = NULL;
 
     gchar *rpath = g_build_filename(APP.root, path, NULL);
 
@@ -61,17 +62,21 @@ camarero_server_callback (
     if (code == -1) {
         switch (errno) {
             case EPERM:
+                error_str = g_strdup_printf("Inadequate file permissions %s; %s", rpath, g_strerror(errno));
                 status = SOUP_STATUS_FORBIDDEN;
             break;
 
             case ENOENT:
+                error_str = g_strdup_printf("File %s not found; %s", rpath, g_strerror(errno));
                 status = SOUP_STATUS_NOT_FOUND;
             break;
 
             default:
+                error_str = g_strdup_printf("Other error for %s; %s", rpath, g_strerror(errno));
                 status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
             break;
         }
+
         goto DONE;
     }
 
@@ -79,7 +84,7 @@ camarero_server_callback (
     if (S_ISDIR(st.st_mode)) {
         DIR *dir = opendir(rpath);
         if (dir == NULL) {
-            g_printf("Failed to read directory %s; %s\n", rpath, g_strerror(errno));
+            error_str = g_strdup_printf("Failed to read directory %s; %s", rpath, g_strerror(errno));
             status = SOUP_STATUS_FORBIDDEN;
             goto DONE;
         }
@@ -140,7 +145,7 @@ camarero_server_callback (
     // Spit the content's of the file down the pipe
     int fd = g_open(rpath, O_RDONLY);
     if (fd == -1) {
-        g_printf("Can't open %s; %s\n", rpath, g_strerror(errno));
+        error_str = g_strdup_printf("Can't open %s; %s", rpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
@@ -152,7 +157,7 @@ camarero_server_callback (
     memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (memmap->mem == MAP_FAILED) {
         g_slice_free(CamareroMemmap, memmap);
-        g_printf("Can't mmap %s; %s\n", rpath, g_strerror(errno));
+        error_str = g_strdup_printf("Can't mmap %s; %s", rpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
@@ -170,6 +175,10 @@ camarero_server_callback (
 
     DONE:
         if (rpath != NULL) g_free(rpath);
+        if (error_str != NULL) {
+            g_printf("%s\n", error_str);
+            soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, error_str, strlen(error_str));
+        }
         soup_message_set_status(msg, status);
         g_printf("Request for %s return status code %d\n", path, status);
 
