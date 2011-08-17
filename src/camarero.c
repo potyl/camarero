@@ -99,11 +99,7 @@ camarero_server_callback (
 
         if (array->len) {
             char *lastSlash = strrchr(path, '/');
-            g_printf("Last stash: '%s'\n", lastSlash);
-            g_printf("Last is NULL: '%s'\n", lastSlash == NULL ? "YES" : "NO");
-            g_printf("Last is 0: '%s' %x %c\n", lastSlash[1] != '\0'  ? "YES" : "NO", lastSlash[1], lastSlash[1]);
             const char *separator = (lastSlash == NULL || lastSlash[1] != '\0') ? "/" : "";
-            g_printf("separator: '%s'\n", separator);
 
             g_string_append_printf(buffer, "<p>has %d files</p>\n<ul>\n", array->len);
             for (guint i = 0; i < array->len; ++i) {
