@@ -252,8 +252,8 @@ main (int argc, char ** argv) {
     argc -= optind;
     argv += optind;
 
-    if (argc > 1) {
-        memcpy(APP.root, argv[1], strlen(argv[1]));
+    if (argc) {
+        memcpy(APP.root, argv[0], strlen(argv[0]));
     }
     else {
         getcwd(APP.root, sizeof(APP.root));
