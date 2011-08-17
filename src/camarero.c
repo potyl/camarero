@@ -221,7 +221,7 @@ main (int argc, char ** argv) {
         switch (rc) {
             case 'p':
                 {
-                    unsigned int val = (unsigned int) g_ascii_strtoull(optarg, NULL, 10);
+                    unsigned int val = (unsigned int) strtol(optarg, NULL, 10);
                     if (val) {
                         g_printf("Parsing port %d\n", val);
                         port = val;
