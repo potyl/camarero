@@ -202,7 +202,7 @@ camarero_signal_end (int signal)
 static int
 camarero_usage() {
 	g_printf(
-		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER...\n"
+		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER\n"
 		"Where OPTION is one of:\n"
 		"   -p, --port=PORT   the server's port\n"
 		"   -v, --version     show the program's version\n"
