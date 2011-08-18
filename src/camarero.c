@@ -25,7 +25,9 @@ typedef struct _CamareroMemmap {
 
 typedef struct _CamareroApp {
     SoupServer  *server;
-    char root [MAXPATHLEN + 1];
+    gchar       root [MAXPATHLEN + 1];
+    size_t      root_len;
+    gboolean    jail;
 } CamareroApp;
 CamareroApp APP = {0,};
 
@@ -56,25 +58,44 @@ camarero_server_callback (
     int status;
     gchar *error_str = NULL;
 
-    gchar *rpath = g_build_filename(APP.root, path, NULL);
+    gchar *fpath = g_build_filename(APP.root, path, NULL);
+    if (APP.jail) {
+        char *rpath = realpath(fpath, NULL);
+        if (rpath == NULL) {
+            error_str = g_strdup_printf("Can't find real path for %s; %s", fpath, g_strerror(errno));
+            status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
+            goto DONE;
+        }
+
+        int cmp = strncmp(APP.root, rpath, APP.root_len);
+        if (cmp != 0 || (rpath[APP.root_len] != '/' && rpath[APP.root_len] != '\0')) {
+            error_str = g_strdup_printf("File %s is not under the root folder %s", rpath, APP.root);
+            free(rpath);
+            status = SOUP_STATUS_FORBIDDEN;
+
+            goto DONE;
+        }
+
+        free(rpath);
+    }
 
     // Get the file size
     GStatBuf st;
-    int code = g_stat(rpath, &st);
+    int code = g_stat(fpath, &st);
     if (code == -1) {
         switch (errno) {
             case EPERM:
-                error_str = g_strdup_printf("Inadequate file permissions %s; %s", rpath, g_strerror(errno));
+                error_str = g_strdup_printf("Inadequate file permissions %s; %s", fpath, g_strerror(errno));
                 status = SOUP_STATUS_FORBIDDEN;
             break;
 
             case ENOENT:
-                error_str = g_strdup_printf("File %s not found; %s", rpath, g_strerror(errno));
+                error_str = g_strdup_printf("File %s not found; %s", fpath, g_strerror(errno));
                 status = SOUP_STATUS_NOT_FOUND;
             break;
 
             default:
-                error_str = g_strdup_printf("Other error for %s; %s", rpath, g_strerror(errno));
+                error_str = g_strdup_printf("Other error for %s; %s", fpath, g_strerror(errno));
                 status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
             break;
         }
@@ -84,14 +105,14 @@ camarero_server_callback (
 
     // If we're dealing with a folder do a directory listing
     if (S_ISDIR(st.st_mode)) {
-        DIR *dir = opendir(rpath);
+        DIR *dir = opendir(fpath);
         if (dir == NULL) {
-            error_str = g_strdup_printf("Failed to read directory %s; %s", rpath, g_strerror(errno));
+            error_str = g_strdup_printf("Failed to read directory %s; %s", fpath, g_strerror(errno));
             status = SOUP_STATUS_FORBIDDEN;
             goto DONE;
         }
 
-        // Get the folder's contents and sort then by name
+        // Get the folder's contents and sort them by name
         GPtrArray *array = g_ptr_array_new();
         struct dirent *dentry;
         while ( (dentry = readdir(dir)) != NULL ) {
@@ -148,9 +169,9 @@ camarero_server_callback (
 
 
     // Spit the content's of the file down the pipe
-    int fd = g_open(rpath, O_RDONLY);
+    int fd = g_open(fpath, O_RDONLY);
     if (fd == -1) {
-        error_str = g_strdup_printf("Can't open %s; %s", rpath, g_strerror(errno));
+        error_str = g_strdup_printf("Can't open %s; %s", fpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
@@ -164,7 +185,7 @@ camarero_server_callback (
     if (memmap->mem == MAP_FAILED) {
         close(fd);
         g_slice_free(CamareroMemmap, memmap);
-        error_str = g_strdup_printf("Can't mmap %s; %s", rpath, g_strerror(errno));
+        error_str = g_strdup_printf("Can't mmap %s; %s", fpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
@@ -181,7 +202,7 @@ camarero_server_callback (
     status = SOUP_STATUS_OK;
 
     DONE:
-        if (rpath != NULL) g_free(rpath);
+        if (fpath != NULL) g_free(fpath);
         if (error_str != NULL) {
             g_printf("%s\n", error_str);
             soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, error_str, strlen(error_str));
@@ -211,6 +232,7 @@ camarero_usage() {
 	g_printf(
 		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER\n"
 		"Where OPTION is one of:\n"
+		"   -j, --jail        only serve files that are under the root folder\n"
 		"   -p, --port=PORT   the server's port\n"
 		"   -v, --version     show the program's version\n"
 		"   -h, --help        print this help message\n"
@@ -223,6 +245,7 @@ int
 main (int argc, char ** argv) {
 
     struct option longopts [] = {
+        { "jail",       no_argument,       NULL, 'j' },
         { "port",       required_argument, NULL, 'p' },
         { "help",       no_argument,       NULL, 'h' },
         { "version",    no_argument,       NULL, 'v' },
@@ -231,8 +254,12 @@ main (int argc, char ** argv) {
 
     unsigned int port = 3000;
     int rc;
-    while ( (rc = getopt_long(argc, argv, "phv", longopts, NULL)) != -1 ) {
+    while ( (rc = getopt_long(argc, argv, "jphv", longopts, NULL)) != -1 ) {
         switch (rc) {
+            case 'j':
+                APP.jail = TRUE;
+            break;
+
             case 'p':
                 {
                     unsigned int val = (unsigned int) strtol(optarg, NULL, 10);
@@ -259,12 +286,21 @@ main (int argc, char ** argv) {
     argc -= optind;
     argv += optind;
 
+    // Get the root folder
+    gchar root [MAXPATHLEN + 1];
     if (argc) {
-        memcpy(APP.root, argv[0], strlen(argv[0]));
+        memcpy(root, argv[0], strlen(argv[0]) + 1);
     }
     else {
-        getcwd(APP.root, sizeof(APP.root));
+        getcwd(root, sizeof(root));
     }
+
+    char *ptr = realpath(root, APP.root);
+    if (ptr == NULL) {
+        g_printf("Root folder %s doesn't exist; %s\n", root, g_strerror(errno));
+        return 1;
+    }
+    APP.root_len = strlen(APP.root);
     printf("Root folder is %s\n", APP.root);
 
     g_thread_init(NULL);
