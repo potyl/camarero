@@ -37,12 +37,6 @@ camarero_memmap_free (gpointer data) {
 }
 
 
-static void
-camareo_foreach_g_free (gpointer data, gpointer user_data) {
-    g_free(data);
-}
-
-
 static int
 camarero_array_sort_str (gconstpointer a, gconstpointer b) {
 	const char **sa = (const char **)a;
@@ -136,7 +130,9 @@ camarero_server_callback (
         else {
             g_string_append(buffer, "<p>is empty.</p>\n");
         }
-        g_ptr_array_foreach(array, camareo_foreach_g_free, NULL);
+        for (guint i = 0; i < array->len; ++i) {
+            g_free(array->pdata[i]);
+        }
         g_ptr_array_free(array, TRUE);
 
         g_string_append(buffer, "</body></html>\n");
