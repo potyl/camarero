@@ -19,6 +19,7 @@
 typedef struct _CamareroMemmap {
     void   *mem;
     size_t length;
+    int    fd;
 } CamareroMemmap;
 
 
@@ -33,6 +34,7 @@ static void
 camarero_memmap_free (gpointer data) {
     CamareroMemmap *memmap = (CamareroMemmap *) data;
     munmap(memmap->mem, memmap->length);
+    close(memmap->fd);
     g_slice_free(CamareroMemmap, memmap);
 }
 
@@ -158,7 +160,9 @@ camarero_server_callback (
     CamareroMemmap *memmap = g_slice_new(CamareroMemmap);
     memmap->length = st.st_size;
     memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    memmap->fd = fd;
     if (memmap->mem == MAP_FAILED) {
+        close(fd);
         g_slice_free(CamareroMemmap, memmap);
         error_str = g_strdup_printf("Can't mmap %s; %s", rpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
