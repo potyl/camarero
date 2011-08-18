@@ -37,6 +37,12 @@ camarero_memmap_free (gpointer data) {
 }
 
 
+static void
+camareo_foreach_g_free (gpointer data, gpointer user_data) {
+    g_free(data);
+}
+
+
 static int
 camarero_array_sort_str (gconstpointer a, gconstpointer b) {
 	const char **sa = (const char **)a;
@@ -94,7 +100,7 @@ camarero_server_callback (
         struct dirent *dentry;
         while ( (dentry = readdir(dir)) != NULL ) {
             if (dentry->d_name[0] == '.') {continue;}
-            g_ptr_array_add(array, (gpointer) dentry->d_name);
+            g_ptr_array_add(array, (gpointer) g_strdup(dentry->d_name));
         }
         closedir(dir);
 
@@ -130,6 +136,7 @@ camarero_server_callback (
         else {
             g_string_append(buffer, "<p>is empty.</p>\n");
         }
+        g_ptr_array_foreach(array, camareo_foreach_g_free, NULL);
         g_ptr_array_free(array, TRUE);
 
         g_string_append(buffer, "</body></html>\n");
