@@ -202,15 +202,15 @@ camarero_server_callback (
     status = SOUP_STATUS_OK;
 
     DONE:
+        soup_message_set_status(msg, status);
         if (fpath != NULL) g_free(fpath);
         if (error_str != NULL) {
-            g_printf("%s\n", error_str);
+            g_printf("%3d %s - %s\n", status, path, error_str);
             soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, error_str, strlen(error_str));
         }
-        soup_message_set_status(msg, status);
-        g_printf("Request for %s return status code %d\n", path, status);
-
-    return;
+        else {
+            g_printf("%3d %s\n", status, path);
+        }
 }
 
 
@@ -297,11 +297,10 @@ main (int argc, char ** argv) {
 
     char *ptr = realpath(root, APP.root);
     if (ptr == NULL) {
-        g_printf("Root folder %s doesn't exist; %s\n", root, g_strerror(errno));
+        g_printf("Document folder %s doesn't exist; %s\n", root, g_strerror(errno));
         return 1;
     }
     APP.root_len = strlen(APP.root);
-    printf("Root folder is %s\n", APP.root);
 
     g_thread_init(NULL);
     g_type_init();
@@ -321,7 +320,7 @@ main (int argc, char ** argv) {
     }
 
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
-    g_printf("Starting Server on port %d\n", soup_server_get_port(APP.server));
+    g_printf("Starting server on port %d for %s\n", port, APP.root);
     soup_server_run(APP.server);
 
     g_printf("Done\n");
