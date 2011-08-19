@@ -50,6 +50,16 @@ camarero_array_sort_str (gconstpointer a, gconstpointer b) {
 
 
 static void
+camarero_favicon_callback (
+    SoupServer *server, SoupMessage *msg,
+    const char *path, GHashTable *query,
+    SoupClientContext *context, gpointer data
+) {
+    soup_message_set_status(msg, SOUP_STATUS_NOT_FOUND);
+    soup_message_body_append(msg->response_body, SOUP_MEMORY_STATIC, "", 0);
+}
+
+static void
 camarero_server_callback (
     SoupServer *server, SoupMessage *msg,
     const char *path, GHashTable *query,
@@ -319,6 +329,7 @@ main (int argc, char ** argv) {
         return 1;
     }
 
+    soup_server_add_handler(APP.server, "/favicon.ico", camarero_favicon_callback, NULL, NULL);
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
     g_printf("Starting server on port %d for %s\n", port, APP.root);
     soup_server_run(APP.server);
