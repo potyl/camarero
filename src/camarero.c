@@ -15,6 +15,10 @@
 
 #include "config.h"
 
+#if GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 30
+#   define g_format_size g_format_size_for_display
+#endif
+
 
 typedef struct _CamareroMemmap {
     void   *mem;
@@ -66,6 +70,7 @@ camarero_server_callback (
     SoupClientContext *context, gpointer data
 ) {
     int status;
+    size_t len;
     gchar *error_str = NULL;
 
     gchar *fpath = g_build_filename(APP.root, path, NULL);
@@ -171,6 +176,7 @@ camarero_server_callback (
         g_string_append(buffer, "</body></html>\n");
 
         soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, buffer->str, buffer->len);
+        len = buffer->len;
         status = SOUP_STATUS_OK;
         g_string_free(buffer, FALSE);
 
@@ -206,6 +212,7 @@ camarero_server_callback (
         memmap,
         camarero_memmap_free
     );
+    len = memmap->length;
     soup_message_body_append_buffer(msg->response_body, buffer);
     soup_buffer_free(buffer); // It's more of an unref() than a free()
 
@@ -215,11 +222,16 @@ camarero_server_callback (
         soup_message_set_status(msg, status);
         if (fpath != NULL) g_free(fpath);
         if (error_str != NULL) {
-            g_printf("%3d %s - %s\n", status, path, error_str);
-            soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, error_str, strlen(error_str));
+            len = strlen(error_str);
+            soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, error_str, len);
+            gchar *size = g_format_size(len);
+            g_printf("%3d %s (%s) - %s\n", status, path, size, error_str);
+            g_free(size);
         }
         else {
-            g_printf("%3d %s\n", status, path);
+            gchar *size = g_format_size(len);
+            g_printf("%3d %s (%s)\n", status, path, size);
+            g_free(size);
         }
 }
 
