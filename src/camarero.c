@@ -32,6 +32,8 @@ typedef struct _CamareroApp {
     gchar       root [MAXPATHLEN + 1];
     size_t      root_len;
     gboolean    jail;
+    guint64     bytes;
+    uint        requests;
 } CamareroApp;
 CamareroApp APP = {0,};
 
@@ -233,6 +235,8 @@ camarero_server_callback (
             g_printf("%3d %s (%s)\n", status, path, size);
             g_free(size);
         }
+        ++APP.requests;
+        APP.bytes = len;
 }
 
 
@@ -345,6 +349,10 @@ main (int argc, char ** argv) {
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
     g_printf("Starting server on port %d for %s\n", port, APP.root);
     soup_server_run(APP.server);
+
+    gchar *size = g_format_size(APP.bytes);
+    g_print("Served %d requests (%s)\n", APP.requests, size);
+    g_free(size);
 
     g_printf("Done\n");
 
