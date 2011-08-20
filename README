@@ -1,0 +1,23 @@
+About
+=====
+
+Camarero is a very simple web server that requires no configuration to start.
+This web server can only serve static pages. It's meant to be used for sharing
+a folder through HTTP.
+
+The web server is built on top of libsoup and glib. The executable is quite
+small and should be powerful enough for sharing folders without too much
+troubles.
+
+
+Installation
+=============
+
+To install the web server make sure that you have all the dependencies:
+    - libsoup-2.4
+
+Then simply do:
+
+    make
+
+The executable camarero should be present in the current folder and can be used.
