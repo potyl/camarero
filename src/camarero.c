@@ -390,7 +390,7 @@ main (int argc, char ** argv) {
 
     APP.server = soup_server_new(
         SOUP_SERVER_PORT, port,
-        SOUP_SERVER_SERVER_HEADER, "simple-httpd ",
+        SOUP_SERVER_SERVER_HEADER, PACKAGE_NAME " ",
         NULL
     );
     if (APP.server == NULL) {
