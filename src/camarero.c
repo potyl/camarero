@@ -317,7 +317,7 @@ main (int argc, char ** argv) {
 
     unsigned int port = 3000;
     int rc;
-    while ( (rc = getopt_long(argc, argv, "uPjphv", longopts, NULL)) != -1 ) {
+    while ( (rc = getopt_long(argc, argv, "u:P:jp:hv", longopts, NULL)) != -1 ) {
         switch (rc) {
             case 'u':
                 {
