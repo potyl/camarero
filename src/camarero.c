@@ -63,6 +63,20 @@ CamareroApp APP = {0,};
 
 
 static void
+camarero_app_free () {
+    if (APP.username != NULL) {
+        g_free(APP.username);
+        APP.username = NULL;
+    }
+
+    if (APP.password != NULL) {
+        g_free(APP.password);
+        APP.password = NULL;
+    }
+}
+
+
+static void
 camarero_memmap_free (gpointer data) {
     CamareroMemmap *memmap = (CamareroMemmap *) data;
     munmap(memmap->mem, memmap->length);
@@ -296,6 +310,7 @@ camarero_signal_end (int signal)
         return;
     }
 
+    camarero_app_free();
     exit(0);
 }
 
@@ -319,6 +334,7 @@ camarero_usage() {
 
 int
 main (int argc, char ** argv) {
+    int exit_value = 0;
 
     struct option longopts [] = {
         { "auth",       required_argument, NULL, 'a' },
@@ -349,7 +365,7 @@ main (int argc, char ** argv) {
                     }
                     else {
                         g_printf("Unrecognized authentication method: %s", optarg);
-                        return 1;
+                        goto FAIL;
                     }
                 }
             break;
@@ -358,7 +374,7 @@ main (int argc, char ** argv) {
                 {
                     if (optarg == NULL) {
                         g_printf("Missing username value\n");
-                        return 1;
+                        goto FAIL;
                     }
                     APP.username = g_strdup(optarg);
                     size_t len = strlen(optarg);
@@ -370,7 +386,7 @@ main (int argc, char ** argv) {
                 {
                     if (optarg == NULL) {
                         g_printf("Missing password value\n");
-                        return 1;
+                        goto FAIL;
                     }
                     APP.password = g_strdup(optarg);
                     size_t len = strlen(optarg);
@@ -386,7 +402,7 @@ main (int argc, char ** argv) {
                 {
                     if (optarg == NULL) {
                         g_printf("Missing port value\n");
-                        return 1;
+                        goto FAIL;
                     }
                     unsigned int val = (unsigned int) strtol(optarg, NULL, 10);
                     if (val) {
@@ -400,12 +416,13 @@ main (int argc, char ** argv) {
             break;
 
             case 'h':
-                return camarero_usage();
+                camarero_usage();
+                goto DONE;
             break;
 
             case 'v':
                 g_printf("%s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
-                return 0;
+                goto DONE;
             break;
         }
     }
@@ -424,7 +441,7 @@ main (int argc, char ** argv) {
     char *ptr = realpath(root, APP.root);
     if (ptr == NULL) {
         g_printf("Document folder %s doesn't exist; %s\n", root, g_strerror(errno));
-        return 1;
+        goto FAIL;
     }
     APP.root_len = strlen(APP.root);
 
@@ -442,7 +459,7 @@ main (int argc, char ** argv) {
     );
     if (APP.server == NULL) {
         g_printf("Failed to create the server\n");
-        return 1;
+        goto FAIL;
     }
 
     if (APP.username != NULL && APP.password != NULL) {
@@ -472,11 +489,11 @@ main (int argc, char ** argv) {
     }
     else if (APP.username != NULL) {
         g_printf("Provide a password with --password\n");
-        return 1;
+        goto FAIL;
     }
     else if (APP.password != NULL) {
         g_printf("Provide a username with --username\n");
-        return 1;
+        goto FAIL;
     }
 
     soup_server_add_handler(APP.server, "/favicon.ico", camarero_favicon_callback, NULL, NULL);
@@ -490,8 +507,14 @@ main (int argc, char ** argv) {
     gchar *size = g_format_size(APP.bytes);
     g_print("Served %d requests (%s)\n", APP.requests, size);
     g_free(size);
-
     g_printf("Done\n");
 
-    return 0;
+    DONE:
+    if (0) {
+        FAIL:
+        exit_value = 1;
+    }
+
+    camarero_app_free();
+    return exit_value;
 }
