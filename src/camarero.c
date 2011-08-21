@@ -320,6 +320,8 @@ camarero_usage() {
 	g_printf(
 		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER\n"
 		"Where OPTION is one of:\n"
+		"   -c, --ssl-cert=FILE   the SSL certificate\n"
+		"   -k, --ssk-key=FILE    the SSL private key\n"
 		"   -a, --auth=METHOD     the authorization method to use: digest (default) or basic\n"
 		"   -u, --username=USER   username that clients have to provide for connecting\n"
 		"   -P, --password=PWD    password that clients have to provide for connecting\n"
@@ -337,6 +339,8 @@ main (int argc, char ** argv) {
     int exit_value = 0;
 
     struct option longopts [] = {
+        { "ssl-cert",   required_argument, NULL, 'c' },
+        { "ssl-key",    required_argument, NULL, 'k' },
         { "auth",       required_argument, NULL, 'a' },
         { "username",   required_argument, NULL, 'u' },
         { "password",   required_argument, NULL, 'P' },
@@ -349,13 +353,34 @@ main (int argc, char ** argv) {
 
     unsigned int port = 3000;
     gboolean auth_digest = TRUE;
+    gchar *ssl_cert = NULL;
+    gchar *ssl_key = NULL;
     int rc;
-    while ( (rc = getopt_long(argc, argv, "a:u:P:jp:hv", longopts, NULL)) != -1 ) {
+    while ( (rc = getopt_long(argc, argv, "c:k:a:u:P:jp:hv", longopts, NULL)) != -1 ) {
         switch (rc) {
+            case 'c':
+                    if (optarg == NULL) {
+                        g_printf("Missing SSL certificate\n");
+                        goto FAIL;
+                    }
+
+                    ssl_cert = optarg;
+            break;
+
+            case 'k':
+                    if (optarg == NULL) {
+                        g_printf("Missing SSL private key\n");
+                        goto FAIL;
+                    }
+
+                    ssl_key = optarg;
+            break;
+
             case 'a':
                 {
                     if (optarg == NULL) {
                         g_printf("Missing authentication method name\n");
+                        goto FAIL;
                     }
                     else if (strcmp(optarg, "basic") == 0) {
                         auth_digest = FALSE;
@@ -452,11 +477,32 @@ main (int argc, char ** argv) {
     signal(SIGQUIT, camarero_signal_end);
     signal(SIGINT,  camarero_signal_end);
 
-    APP.server = soup_server_new(
-        SOUP_SERVER_PORT, port,
-        SOUP_SERVER_SERVER_HEADER, PACKAGE_NAME " ",
-        NULL
-    );
+    if (ssl_cert == NULL && ssl_key == NULL) {
+        // HTTP server
+        APP.server = soup_server_new(
+            SOUP_SERVER_PORT, port,
+            SOUP_SERVER_SERVER_HEADER, PACKAGE_NAME "/" PACKAGE_VERSION,
+            NULL
+        );
+    }
+    else if (ssl_cert != NULL && ssl_key != NULL) {
+        // HTTPS SSL server
+        APP.server = soup_server_new(
+            SOUP_SERVER_PORT, port,
+            SOUP_SERVER_SERVER_HEADER, PACKAGE_NAME "/" PACKAGE_VERSION,
+            SOUP_SERVER_SSL_CERT_FILE, ssl_cert,
+            SOUP_SERVER_SSL_KEY_FILE,  ssl_key,
+            NULL
+        );
+    }
+    else if (ssl_cert == NULL) {
+        g_printf("Provide a SSL certificate with --ssl-cert\n");
+        goto FAIL;
+    }
+    else {
+        g_printf("Provide a SSL key with --ssl-key\n");
+        goto FAIL;
+    }
     if (APP.server == NULL) {
         g_printf("Failed to create the server\n");
         goto FAIL;
