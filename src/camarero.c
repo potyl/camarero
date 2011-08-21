@@ -34,6 +34,11 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 
 #include "config.h"
 
@@ -552,14 +557,40 @@ main (int argc, char ** argv) {
     // Register ou handler and one to get rid of favicon.ico requests
     soup_server_add_handler(APP.server, "/favicon.ico", camarero_favicon_callback, NULL, NULL);
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
-    g_printf("Starting server on port %d for %s\n", port, APP.root);
+    g_printf("Starting server for document root: %s\n", APP.root);
+
+
+    // Print the URLs that can be used to reach this server
+    g_printf("Server is reachable at the following URLs:\n");
+    struct ifaddrs *if_addrs = NULL;
+    getifaddrs(&if_addrs);
+    const char *format = soup_server_is_https(APP.server) ? "  https://%s:%d/n" : "  http://%s:%d/\n";
+    for (struct ifaddrs *ifa = if_addrs; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr->sa_family == AF_INET) {
+            // IP4
+            char address[INET_ADDRSTRLEN];
+            struct in_addr *addr = &((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
+            inet_ntop(AF_INET, addr, address, INET_ADDRSTRLEN);
+            struct hostent *host = gethostbyaddr(addr, INET_ADDRSTRLEN, ifa->ifa_addr->sa_family);
+            if (host != NULL) {
+                g_printf(format, host->h_name, port);
+            }
+            else {
+                g_printf(format, address, port);
+            }
+        }
+    }
+    if (if_addrs != NULL) {
+        freeifaddrs(if_addrs);
+    }
+
 
     // Run the server
     soup_server_run(APP.server);
 
     // Show some stats
     gchar *size = g_format_size(APP.bytes);
-    g_print("Served %d requests (%s)\n", APP.requests, size);
+    g_printf("Served %d requests (%s)\n", APP.requests, size);
     g_free(size);
     g_printf("Done\n");
 
