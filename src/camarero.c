@@ -547,8 +547,6 @@ main (int argc, char ** argv) {
     g_printf("Starting server on port %d for %s\n", port, APP.root);
     soup_server_run(APP.server);
 
-    g_free(APP.username);
-    g_free(APP.password);
 
     gchar *size = g_format_size(APP.bytes);
     g_print("Served %d requests (%s)\n", APP.requests, size);
