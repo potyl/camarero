@@ -510,6 +510,7 @@ main (int argc, char ** argv) {
         g_printf("Failed to create the server\n");
         goto FAIL;
     }
+    port = soup_server_get_port(APP.server);
 
 
     // Check if the pages have to be protected by a username/password
