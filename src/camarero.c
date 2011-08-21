@@ -321,6 +321,10 @@ main (int argc, char ** argv) {
         switch (rc) {
             case 'u':
                 {
+                    if (optarg == NULL) {
+                        g_printf("Missing username value\n");
+                        return 1;
+                    }
                     APP.username = g_strdup(optarg);
                     size_t len = strlen(optarg);
                     memset(optarg, '*', len);
@@ -329,6 +333,10 @@ main (int argc, char ** argv) {
 
             case 'P':
                 {
+                    if (optarg == NULL) {
+                        g_printf("Missing password value\n");
+                        return 1;
+                    }
                     APP.password = g_strdup(optarg);
                     size_t len = strlen(optarg);
                     memset(optarg, '*', len);
@@ -341,6 +349,10 @@ main (int argc, char ** argv) {
 
             case 'p':
                 {
+                    if (optarg == NULL) {
+                        g_printf("Missing port value\n");
+                        return 1;
+                    }
                     unsigned int val = (unsigned int) strtol(optarg, NULL, 10);
                     if (val) {
                         g_printf("Parsing port %d\n", val);
