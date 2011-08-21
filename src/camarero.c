@@ -477,6 +477,7 @@ main (int argc, char ** argv) {
     signal(SIGQUIT, camarero_signal_end);
     signal(SIGINT,  camarero_signal_end);
 
+    // Create the server instance
     if (ssl_cert == NULL && ssl_key == NULL) {
         // HTTP server
         APP.server = soup_server_new(
@@ -503,11 +504,15 @@ main (int argc, char ** argv) {
         g_printf("Provide a SSL key with --ssl-key\n");
         goto FAIL;
     }
+
+    // A server should be created
     if (APP.server == NULL) {
         g_printf("Failed to create the server\n");
         goto FAIL;
     }
 
+
+    // Check if the pages have to be protected by a username/password
     if (APP.username != NULL && APP.password != NULL) {
         SoupAuthDomain *auth_domain;
         if (auth_digest) {
@@ -542,17 +547,23 @@ main (int argc, char ** argv) {
         goto FAIL;
     }
 
+
+    // Register ou handler and one to get rid of favicon.ico requests
     soup_server_add_handler(APP.server, "/favicon.ico", camarero_favicon_callback, NULL, NULL);
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
     g_printf("Starting server on port %d for %s\n", port, APP.root);
+
+    // Run the server
     soup_server_run(APP.server);
 
-
+    // Show some stats
     gchar *size = g_format_size(APP.bytes);
     g_print("Served %d requests (%s)\n", APP.requests, size);
     g_free(size);
     g_printf("Done\n");
 
+
+    // Cleanup
     DONE:
     if (0) {
         FAIL:
