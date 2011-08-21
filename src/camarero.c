@@ -265,11 +265,25 @@ camarero_server_callback (
 
 
 static gboolean
-camarero_auth_callback (
+camarero_basic_auth_callback (
     SoupAuthDomain *auth_domain, SoupMessage *msg,
     const char *username, const char *password, gpointer data
 ) {
     return strcmp(APP.username, username) == 0 && strcmp(APP.password, password) == 0;
+}
+
+
+static char*
+camarero_digest_auth_callback (
+    SoupAuthDomain *auth_domain, SoupMessage *msg,
+    const char *username, gpointer data)
+{
+    if (strcmp(APP.username, username) != 0) {
+        return NULL;
+    }
+
+    // The password is already the digest
+    return g_strdup(APP.password);
 }
 
 
@@ -291,6 +305,7 @@ camarero_usage() {
 	g_printf(
 		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER\n"
 		"Where OPTION is one of:\n"
+		"   -a, --auth=METHOD     the authorization method to use: digest (default) or basic\n"
 		"   -u, --username=USER   username that clients have to provide for connecting\n"
 		"   -P, --password=PWD    password that clients have to provide for connecting\n"
 		"   -j, --jail            only serve files that are under the root folder\n"
@@ -306,6 +321,7 @@ int
 main (int argc, char ** argv) {
 
     struct option longopts [] = {
+        { "auth",       required_argument, NULL, 'a' },
         { "username",   required_argument, NULL, 'u' },
         { "password",   required_argument, NULL, 'P' },
         { "jail",       no_argument,       NULL, 'j' },
@@ -316,9 +332,28 @@ main (int argc, char ** argv) {
     };
 
     unsigned int port = 3000;
+    gboolean auth_digest = TRUE;
     int rc;
-    while ( (rc = getopt_long(argc, argv, "u:P:jp:hv", longopts, NULL)) != -1 ) {
+    while ( (rc = getopt_long(argc, argv, "a:u:P:jp:hv", longopts, NULL)) != -1 ) {
         switch (rc) {
+            case 'a':
+                {
+                    if (optarg == NULL) {
+                        g_printf("Missing authentication method name\n");
+                    }
+                    else if (strcmp(optarg, "basic") == 0) {
+                        auth_digest = FALSE;
+                    }
+                    else if (strcmp(optarg, "digest") == 0) {
+                        auth_digest = TRUE;
+                    }
+                    else {
+                        g_printf("Unrecognized authentication method: %s", optarg);
+                        return 1;
+                    }
+                }
+            break;
+
             case 'u':
                 {
                     if (optarg == NULL) {
@@ -411,12 +446,27 @@ main (int argc, char ** argv) {
     }
 
     if (APP.username != NULL && APP.password != NULL) {
-        SoupAuthDomain *auth_domain = soup_auth_domain_basic_new(
-            SOUP_AUTH_DOMAIN_REALM, PACKAGE_NAME,
-            SOUP_AUTH_DOMAIN_ADD_PATH, "/",
-            SOUP_AUTH_DOMAIN_BASIC_AUTH_CALLBACK, camarero_auth_callback,
-            NULL
-        );
+        SoupAuthDomain *auth_domain;
+        if (auth_digest) {
+            // Since we have a single user/password we can generate the digest
+            char *password = APP.password;
+            APP.password = soup_auth_domain_digest_encode_password(APP.username, PACKAGE_NAME, APP.password);
+            g_free(password);
+
+            auth_domain = soup_auth_domain_digest_new(
+                SOUP_AUTH_DOMAIN_REALM, PACKAGE_NAME,
+                SOUP_AUTH_DOMAIN_BASIC_AUTH_CALLBACK, camarero_digest_auth_callback,
+                NULL
+            );
+        }
+        else {
+            auth_domain = soup_auth_domain_basic_new(
+                SOUP_AUTH_DOMAIN_REALM, PACKAGE_NAME,
+                SOUP_AUTH_DOMAIN_BASIC_AUTH_CALLBACK, camarero_basic_auth_callback,
+                NULL
+            );
+        }
+        soup_auth_domain_add_path(auth_domain, "/");
         soup_server_add_auth_domain(APP.server, auth_domain);
         g_object_unref(auth_domain);
     }
