@@ -56,6 +56,8 @@ typedef struct _CamareroApp {
     gboolean    jail;
     guint64     bytes;
     uint        requests;
+    gchar       *username;
+    gchar       *password;
 } CamareroApp;
 CamareroApp APP = {0,};
 
@@ -262,6 +264,15 @@ camarero_server_callback (
 }
 
 
+static gboolean
+camarero_auth_callback (
+    SoupAuthDomain *auth_domain, SoupMessage *msg,
+    const char *username, const char *password, gpointer data
+) {
+    return strcmp(APP.username, username) == 0 && strcmp(APP.password, password) == 0;
+}
+
+
 static void
 camarero_signal_end (int signal)
 {
@@ -280,10 +291,12 @@ camarero_usage() {
 	g_printf(
 		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER\n"
 		"Where OPTION is one of:\n"
-		"   -j, --jail        only serve files that are under the root folder\n"
-		"   -p, --port=PORT   the server's port\n"
-		"   -v, --version     show the program's version\n"
-		"   -h, --help        print this help message\n"
+		"   -u, --username=USER   username that clients have to provide for connecting\n"
+		"   -P, --password=PWD    password that clients have to provide for connecting\n"
+		"   -j, --jail            only serve files that are under the root folder\n"
+		"   -p, --port=PORT       the server's port\n"
+		"   -v, --version         show the program's version\n"
+		"   -h, --help            print this help message\n"
 	);
 	return 1;
 }
@@ -293,6 +306,8 @@ int
 main (int argc, char ** argv) {
 
     struct option longopts [] = {
+        { "username",   required_argument, NULL, 'u' },
+        { "password",   required_argument, NULL, 'P' },
         { "jail",       no_argument,       NULL, 'j' },
         { "port",       required_argument, NULL, 'p' },
         { "help",       no_argument,       NULL, 'h' },
@@ -302,8 +317,24 @@ main (int argc, char ** argv) {
 
     unsigned int port = 3000;
     int rc;
-    while ( (rc = getopt_long(argc, argv, "jphv", longopts, NULL)) != -1 ) {
+    while ( (rc = getopt_long(argc, argv, "uPjphv", longopts, NULL)) != -1 ) {
         switch (rc) {
+            case 'u':
+                {
+                    APP.username = g_strdup(optarg);
+                    size_t len = strlen(optarg);
+                    memset(optarg, '*', len);
+                }
+            break;
+
+            case 'P':
+                {
+                    APP.password = g_strdup(optarg);
+                    size_t len = strlen(optarg);
+                    memset(optarg, '*', len);
+                }
+            break;
+
             case 'j':
                 APP.jail = TRUE;
             break;
@@ -367,10 +398,32 @@ main (int argc, char ** argv) {
         return 1;
     }
 
+    if (APP.username != NULL && APP.password != NULL) {
+        SoupAuthDomain *auth_domain = soup_auth_domain_basic_new(
+            SOUP_AUTH_DOMAIN_REALM, PACKAGE_NAME,
+            SOUP_AUTH_DOMAIN_ADD_PATH, "/",
+            SOUP_AUTH_DOMAIN_BASIC_AUTH_CALLBACK, camarero_auth_callback,
+            NULL
+        );
+        soup_server_add_auth_domain(APP.server, auth_domain);
+        g_object_unref(auth_domain);
+    }
+    else if (APP.username != NULL) {
+        g_printf("Provide a password with --password\n");
+        return 1;
+    }
+    else if (APP.password != NULL) {
+        g_printf("Provide a username with --username\n");
+        return 1;
+    }
+
     soup_server_add_handler(APP.server, "/favicon.ico", camarero_favicon_callback, NULL, NULL);
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
     g_printf("Starting server on port %d for %s\n", port, APP.root);
     soup_server_run(APP.server);
+
+    g_free(APP.username);
+    g_free(APP.password);
 
     gchar *size = g_format_size(APP.bytes);
     g_print("Served %d requests (%s)\n", APP.requests, size);
