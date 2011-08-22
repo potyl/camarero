@@ -30,6 +30,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <signal.h>
+#define __USE_BSD
 #include <stdlib.h>
 #include <getopt.h>
 #include <unistd.h>
