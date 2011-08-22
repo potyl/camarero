@@ -60,7 +60,7 @@ typedef struct _CamareroApp {
     size_t      root_len;
     gboolean    jail;
     guint64     bytes;
-    uint        requests;
+    guint       requests;
     gchar       *username;
     gchar       *password;
 } CamareroApp;
