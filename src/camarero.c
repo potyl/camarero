@@ -340,6 +340,20 @@ camarero_usage() {
 }
 
 
+#if defined DEBUG
+
+static void
+camarero_quit_callback (
+    SoupServer *server, SoupMessage *msg,
+    const char *path, GHashTable *query,
+    SoupClientContext *context, gpointer data
+) {
+    camarero_signal_end(0);
+}
+
+#endif
+
+
 int
 main (int argc, char ** argv) {
     int exit_value = 0;
@@ -556,6 +570,9 @@ main (int argc, char ** argv) {
 
 
     // Register ou handler and one to get rid of favicon.ico requests
+#if defined DEBUG
+    soup_server_add_handler(APP.server, "/QUIT", camarero_quit_callback, NULL, NULL);
+#endif
     soup_server_add_handler(APP.server, "/favicon.ico", camarero_favicon_callback, NULL, NULL);
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
     g_printf("Starting server for document root: %s\n", APP.root);
