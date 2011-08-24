@@ -332,7 +332,7 @@ camarero_usage() {
 		"   -u, --username=USER   username that clients have to provide for connecting\n"
 		"   -P, --password=PWD    password that clients have to provide for connecting\n"
 		"   -j, --jail            only serve files that are under the root folder\n"
-		"   -p, --port=PORT       the server's port\n"
+		"   -p, --port=PORT       the server's port (pass 'random' for a random port)\n"
 		"   -v, --version         show the program's version\n"
 		"   -h, --help            print this help message\n"
 	);
@@ -449,13 +449,17 @@ main (int argc, char ** argv) {
                         g_printf("Missing port value\n");
                         goto FAIL;
                     }
-                    unsigned int val = (unsigned int) strtol(optarg, NULL, 10);
-                    if (val) {
-                        g_printf("Parsing port %d\n", val);
-                        port = val;
+                    else if (strcmp(optarg, "random") == 0) {
+                        port = SOUP_ADDRESS_ANY_PORT;
                     }
                     else {
-                        g_printf("Can't parse port: %s\n", optarg);
+                        unsigned int val = (unsigned int) strtol(optarg, NULL, 10);
+                        if (val) {
+                            port = val;
+                        }
+                        else {
+                            g_printf("Can't parse port: %s\n", optarg);
+                        }
                     }
                 }
             break;
