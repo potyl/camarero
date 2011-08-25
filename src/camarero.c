@@ -109,6 +109,7 @@ camarero_favicon_callback (
     soup_message_body_append(msg->response_body, SOUP_MEMORY_STATIC, "", 0);
 }
 
+
 static void
 camarero_server_callback (
     SoupServer *server, SoupMessage *msg,
