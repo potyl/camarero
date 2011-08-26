@@ -173,15 +173,16 @@ camarero_server_callback (
         GStatBuf index_st;
         gboolean show_dir = FALSE;
         code = g_stat(index_path, &index_st);
-        if (code == ENOENT) {
-            // There's no /index.html, we will list the contents of the folder
-            show_dir = TRUE;
-        }
-        else {
-            // Pretend that we got the /index.html file as an initial file
+        printf("Got = %d and noent = %d\n", code, ENOENT);
+        if (code == 0) {
+            // Serve /index.html file as an initial file
             g_free(fpath);
             fpath = index_path;
             memcpy(&st, &index_st, sizeof(index_st));
+        }
+        else {
+            // There's no /index.html, we will list the contents of the folder
+            show_dir = TRUE;
         }
 
         if (show_dir) {
