@@ -173,7 +173,6 @@ camarero_server_callback (
         GStatBuf index_st;
         gboolean show_dir = FALSE;
         code = g_stat(index_path, &index_st);
-        printf("Got = %d and noent = %d\n", code, ENOENT);
         if (code == 0) {
             // Serve /index.html file as an initial file
             g_free(fpath);
