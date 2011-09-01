@@ -55,6 +55,12 @@ typedef struct _CamareroMemmap {
 } CamareroMemmap;
 
 
+typedef struct _CamareroDirEntry {
+    gchar    *name;
+    GStatBuf stat;
+} CamareroDirEntry;
+
+
 typedef struct _CamareroApp {
     SoupServer  *server;
     gchar       root [MAXPATHLEN + 1];
@@ -92,10 +98,11 @@ camarero_memmap_free (gpointer data) {
 
 
 static int
-camarero_array_sort_str (gconstpointer a, gconstpointer b) {
-	const char **sa = (const char **)a;
-	const char **sb = (const char **)b;
-	return g_strcmp0(*sa, *sb);
+camarero_array_sort_dir_entry (gconstpointer a, gconstpointer b) {
+	const CamareroDirEntry **da = (const CamareroDirEntry **) a;
+	const CamareroDirEntry **db = (const CamareroDirEntry **) b;
+
+	return g_strcmp0((*da)->name, (*db)->name);
 }
 
 
@@ -197,11 +204,23 @@ camarero_server_callback (
             struct dirent *dentry;
             while ( (dentry = readdir(dir)) != NULL ) {
                 if (dentry->d_name[0] == '.') {continue;}
-                g_ptr_array_add(array, (gpointer) g_strdup(dentry->d_name));
+                CamareroDirEntry *dir_entry = g_slice_new(CamareroDirEntry);
+                dir_entry->name = g_strdup(dentry->d_name);
+
+                // Perform a stat for the entry
+                GStatBuf entry_st;
+                gchar *entry_path = g_build_filename(APP.root, path, dentry->d_name, NULL);
+                code = g_stat(entry_path, &entry_st);
+                g_free(entry_path);
+                if (code == 0) {
+                    memcpy(&(dir_entry->stat), &entry_st, sizeof(entry_st));
+                }
+
+                g_ptr_array_add(array, (gpointer) dir_entry);
             }
             closedir(dir);
 
-            g_ptr_array_sort(array, (GCompareFunc) camarero_array_sort_str);
+            g_ptr_array_sort(array, (GCompareFunc) camarero_array_sort_dir_entry);
 
 
             // Build an HTML page with the folder contents
@@ -212,10 +231,15 @@ camarero_server_callback (
             if (array->len) {
                 g_string_append_printf(buffer, "<p>has %d files</p>\n<ul>\n", array->len);
                 for (guint i = 0; i < array->len; ++i) {
-                    char *name = (char *) array->pdata[i];
-                    char *u_name = g_uri_escape_string(name, "/", TRUE);
-                    g_string_append_printf(buffer, "  <li><a href='%s'>%s</li>\n", u_name, name);
+                    CamareroDirEntry *entry = (CamareroDirEntry *) array->pdata[i];
+                    gchar *u_name = g_uri_escape_string(entry->name, "/", TRUE);
+                    gchar *size = g_format_size(entry->stat.st_size);
+                    gchar *for_dir = S_ISDIR(entry->stat.st_mode) ? "/" : "";
+                    g_string_append_printf(buffer, "  <li><a href='%s%s'>%s%s</a> (%s)</li>\n",
+                        u_name, for_dir, entry->name, for_dir, size
+                    );
                     g_free(u_name);
+                    g_free(size);
                 }
                 g_string_append(buffer, "<ul>\n");
             }
@@ -223,7 +247,9 @@ camarero_server_callback (
                 g_string_append(buffer, "<p>is empty.</p>\n");
             }
             for (guint i = 0; i < array->len; ++i) {
-                g_free(array->pdata[i]);
+                CamareroDirEntry *entry = (CamareroDirEntry *) array->pdata[i];
+                g_free(entry->name);
+                g_slice_free(CamareroDirEntry, entry);
             }
             g_ptr_array_free(array, TRUE);
 
