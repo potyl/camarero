@@ -326,7 +326,7 @@ camarero_server_callback (
             g_free(size);
         }
         ++APP.requests;
-        APP.bytes = len;
+        APP.bytes += len;
 }
 
 
