@@ -175,6 +175,17 @@ camarero_server_callback (
     // If we're dealing with a folder do a directory listing
     if (S_ISDIR(st.st_mode)) {
 
+        // Make sure that the URI path for a folder ends with / otherwise do a redirect
+        gchar *last_slash = strrchr(path, '/');
+        if (last_slash == NULL || last_slash[1] != '\0') {
+            //  The path points to a folder but is missing the last '/'
+            gchar *redirect = g_strdup_printf("%s/", path);
+            soup_message_headers_append(msg->response_headers, "Location", redirect);
+            status = SOUP_STATUS_MOVED_PERMANENTLY;
+            g_free(redirect);
+            goto DONE;
+        }
+
         // Try to serve an index.html, if thee's one
         gchar *index_path = g_build_filename(APP.root, path, "index.html", NULL);
         GStatBuf index_st;
