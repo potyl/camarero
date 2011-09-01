@@ -276,6 +276,13 @@ camarero_server_callback (
     }
 
 
+    if (st.st_size == 0) {
+        // Mmap doesn't like to load files with a size of 0
+        status = SOUP_STATUS_OK;
+        goto DONE;
+    }
+
+
     // Spit the content's of the file down the pipe
     int fd = g_open(fpath, O_RDONLY);
     if (fd == -1) {
