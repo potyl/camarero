@@ -123,8 +123,8 @@ camarero_server_callback (
     const char *path, GHashTable *query,
     SoupClientContext *context, gpointer data
 ) {
-    int status;
-    size_t len;
+    int status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
+    size_t len = 0;
     gchar *error_str = NULL;
 
     gchar *fpath = g_build_filename(APP.root, path, NULL);
