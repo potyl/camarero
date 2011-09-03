@@ -79,6 +79,13 @@ CamareroApp APP = {0,};
 
 static void
 camarero_app_free () {
+
+    if (APP.server != NULL) {
+        g_object_unref(G_OBJECT(APP.server));
+        APP.server = NULL;
+    }
+
+
     if (APP.username != NULL) {
         g_free(APP.username);
         APP.username = NULL;
