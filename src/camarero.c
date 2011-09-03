@@ -42,6 +42,8 @@
 #include <netdb.h>
 
 #include "config.h"
+#include "camarero-mime-types.h"
+
 
 #if GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 30
 #   define g_format_size g_format_size_for_display
@@ -70,6 +72,7 @@ typedef struct _CamareroApp {
     guint       requests;
     gchar       *username;
     gchar       *password;
+    GHashTable  *mime_types;
 } CamareroApp;
 CamareroApp APP = {0,};
 
@@ -84,6 +87,11 @@ camarero_app_free () {
     if (APP.password != NULL) {
         g_free(APP.password);
         APP.password = NULL;
+    }
+
+    if (APP.mime_types != NULL) {
+        g_hash_table_unref(APP.mime_types);
+        APP.mime_types = NULL;
     }
 }
 
@@ -126,6 +134,7 @@ camarero_server_callback (
     int status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
     size_t len = 0;
     gchar *error_str = NULL;
+    const gchar *content_type = NULL;
 
     gchar *fpath = g_build_filename(APP.root, path, NULL);
     if (APP.jail) {
@@ -236,6 +245,7 @@ camarero_server_callback (
 
             // Build an HTML page with the folder contents
             GString *buffer = g_string_new_len(NULL, 4096);
+            content_type = "text/html";
             g_string_append_printf(buffer, "<html><head><title>Dir %s</title></head><body>\n", path);
             g_string_append_printf(buffer, "<h1>Dir %s</h1>\n", path);
 
@@ -275,6 +285,14 @@ camarero_server_callback (
         }
     }
 
+    char *extension = strrchr(fpath, '.');
+    printf("ext is %s\n", extension);
+    if (extension != NULL) {
+        const gchar *mime_type = g_hash_table_lookup(APP.mime_types, extension + 1);
+        if (mime_type != NULL) {
+            content_type = mime_type;
+        }
+    }
 
     if (st.st_size == 0) {
         // Mmap doesn't like to load files with a size of 0
@@ -318,6 +336,10 @@ camarero_server_callback (
     status = SOUP_STATUS_OK;
 
     DONE:
+        if (content_type != NULL) {
+            soup_message_headers_append(msg->response_headers, "Content-Type", content_type);
+        }
+
         soup_message_set_status(msg, status);
         if (fpath != NULL) g_free(fpath);
         if (error_str != NULL) {
@@ -665,6 +687,7 @@ main (int argc, char ** argv) {
         freeifaddrs(if_addrs);
     }
 
+    APP.mime_types = camarero_get_mime_types();
 
     // Run the server
     soup_server_run(APP.server);
