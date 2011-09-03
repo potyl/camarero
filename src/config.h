@@ -20,5 +20,10 @@
  * Boston, MA  02110-1301  USA
  */
 
+#ifndef CAMARERO_CONFIG
+#define CAMARERO_CONFIG 1
+
 #define PACKAGE_NAME    "camarero"
 #define PACKAGE_VERSION "0.0.1"
+
+#endif
