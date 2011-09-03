@@ -201,6 +201,7 @@ camarero_server_callback (
         gboolean show_dir = FALSE;
         code = g_stat(index_path, &index_st);
         if (code == 0) {
+            // FIXME do a redirect to index.html
             // Serve /index.html file as an initial file
             g_free(fpath);
             fpath = index_path;
@@ -288,9 +289,13 @@ camarero_server_callback (
     char *extension = strrchr(fpath, '.');
     printf("ext is %s\n", extension);
     if (extension != NULL) {
-        const gchar *mime_type = g_hash_table_lookup(APP.mime_types, extension + 1);
-        if (mime_type != NULL) {
-            content_type = mime_type;
+        extension = g_ascii_strdown(extension + 1, -1);
+        if (extension != NULL) {
+            const gchar *mime_type = g_hash_table_lookup(APP.mime_types, extension);
+            g_free(extension);
+            if (mime_type != NULL) {
+                content_type = mime_type;
+            }
         }
     }
 
