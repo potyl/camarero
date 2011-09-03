@@ -277,16 +277,13 @@ camarero_server_callback (
                         g_free(size);
                     }
                     g_free(u_name);
+                    g_free(entry->name);
+                    g_slice_free(CamareroDirEntry, entry);
                 }
                 g_string_append(buffer, "<ul>\n");
             }
             else {
                 g_string_append(buffer, "<p>is empty.</p>\n");
-            }
-            for (guint i = 0; i < array->len; ++i) {
-                CamareroDirEntry *entry = (CamareroDirEntry *) array->pdata[i];
-                g_free(entry->name);
-                g_slice_free(CamareroDirEntry, entry);
             }
             g_ptr_array_free(array, TRUE);
 
