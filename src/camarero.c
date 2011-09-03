@@ -293,7 +293,6 @@ camarero_server_callback (
     }
 
     char *extension = strrchr(fpath, '.');
-    printf("ext is %s\n", extension);
     if (extension != NULL) {
         extension = g_ascii_strdown(extension + 1, -1);
         if (extension != NULL) {
