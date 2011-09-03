@@ -187,10 +187,10 @@ camarero_server_callback (
         // Make sure that the URI path for a folder ends with / otherwise do a redirect
         gchar *last_slash = strrchr(path, '/');
         if (last_slash == NULL || last_slash[1] != '\0') {
-            //  The path points to a folder but is missing the last '/'
+            // The path points to a folder but is missing the last '/'
             gchar *redirect = g_strdup_printf("%s/", path);
-            soup_message_headers_append(msg->response_headers, "Location", redirect);
             status = SOUP_STATUS_MOVED_PERMANENTLY;
+            soup_message_headers_append(msg->response_headers, "Location", redirect);
             g_free(redirect);
             goto DONE;
         }
