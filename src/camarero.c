@@ -670,7 +670,6 @@ main (int argc, char ** argv) {
 #endif
     soup_server_add_handler(APP.server, "/favicon.ico", camarero_favicon_callback, NULL, NULL);
     soup_server_add_handler(APP.server, NULL, camarero_server_callback, NULL, NULL);
-    g_printf("Starting server for document root: %s\n", APP.root);
 
 
     // Print the URLs that can be used to reach this server
@@ -706,13 +705,13 @@ main (int argc, char ** argv) {
     APP.mime_types = camarero_get_mime_types();
 
     // Run the server
+    g_printf("Starting server for document root: %s\n", APP.root);
     soup_server_run(APP.server);
 
     // Show some stats
     gchar *size = g_format_size(APP.bytes);
     g_printf("Served %d requests (%s)\n", APP.requests, size);
     g_free(size);
-    g_printf("Done\n");
 
 
     // Cleanup
