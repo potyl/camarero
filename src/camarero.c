@@ -200,12 +200,14 @@ camarero_server_callback (
         GStatBuf index_st;
         gboolean show_dir = FALSE;
         code = g_stat(index_path, &index_st);
+        g_free(index_path);
         if (code == 0) {
-            // FIXME do a redirect to index.html
-            // Serve /index.html file as an initial file
-            g_free(fpath);
-            fpath = index_path;
-            memcpy(&st, &index_st, sizeof(index_st));
+            // The path points to a folder that has an index.html, lets redirect the client there
+            gchar *redirect = g_build_filename(path, "index.html", NULL);
+            status = SOUP_STATUS_MOVED_PERMANENTLY;
+            soup_message_headers_append(msg->response_headers, "Location", redirect);
+            g_free(redirect);
+            goto DONE;
         }
         else {
             // There's no /index.html, we will list the contents of the folder
