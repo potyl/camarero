@@ -251,17 +251,23 @@ camarero_server_callback (
             g_string_append_printf(buffer, "<h1>Dir %s</h1>\n", path);
 
             if (array->len) {
-                g_string_append_printf(buffer, "<p>has %d files</p>\n<ul>\n", array->len);
+                g_string_append_printf(buffer, "<p>%d files</p>\n<ul>\n", array->len);
                 for (guint i = 0; i < array->len; ++i) {
                     CamareroDirEntry *entry = (CamareroDirEntry *) array->pdata[i];
                     gchar *u_name = g_uri_escape_string(entry->name, "/", TRUE);
-                    gchar *size = g_format_size(entry->stat.st_size);
-                    gchar *for_dir = S_ISDIR(entry->stat.st_mode) ? "/" : "";
-                    g_string_append_printf(buffer, "  <li><a href='%s%s'>%s%s</a> (%s)</li>\n",
-                        u_name, for_dir, entry->name, for_dir, size
-                    );
+                    if (S_ISDIR(entry->stat.st_mode)) {
+                        g_string_append_printf(buffer, "  <li><a href='%s/'>%s/</a></li>\n",
+                            u_name, entry->name
+                        );
+                    }
+                    else {
+                        gchar *size = g_format_size(entry->stat.st_size);
+                        g_string_append_printf(buffer, "  <li><a href='%s'>%s</a> (%s)</li>\n",
+                            u_name, entry->name, size
+                        );
+                        g_free(size);
+                    }
                     g_free(u_name);
-                    g_free(size);
                 }
                 g_string_append(buffer, "<ul>\n");
             }
