@@ -64,10 +64,10 @@ camarero_get_mime_types () {
     g_hash_table_insert(mime_types, "bsh", "application/x-bsh");
     g_hash_table_insert(mime_types, "bz", "application/x-bzip");
     g_hash_table_insert(mime_types, "bz2", "application/x-bzip2");
-    g_hash_table_insert(mime_types, "c", "text/plain");
-    g_hash_table_insert(mime_types, "c++", "text/plain");
+    g_hash_table_insert(mime_types, "c", "text/x-c");
+    g_hash_table_insert(mime_types, "c++", "text/x-c");
     g_hash_table_insert(mime_types, "cat", "application/vnd.ms-pki.seccat");
-    g_hash_table_insert(mime_types, "cc", "text/plain");
+    g_hash_table_insert(mime_types, "cc", "text/x-c");
     g_hash_table_insert(mime_types, "ccad", "application/clariscad");
     g_hash_table_insert(mime_types, "cco", "application/x-cocoa");
     g_hash_table_insert(mime_types, "cdf", "application/cdf");
@@ -83,7 +83,7 @@ camarero_get_mime_types () {
     g_hash_table_insert(mime_types, "crl", "application/pkcs-crl");
     g_hash_table_insert(mime_types, "crt", "application/pkix-cert");
     g_hash_table_insert(mime_types, "csh", "application/x-csh");
-    g_hash_table_insert(mime_types, "css", "application/x-pointplus");
+    g_hash_table_insert(mime_types, "css", "text/css");
     g_hash_table_insert(mime_types, "cxx", "text/plain");
     g_hash_table_insert(mime_types, "dcr", "application/x-director");
     g_hash_table_insert(mime_types, "deepv", "application/x-deepv");
