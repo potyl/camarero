@@ -114,10 +114,10 @@ camarero_memmap_free (gpointer data) {
 
 static int
 camarero_array_sort_dir_entry (gconstpointer a, gconstpointer b) {
-	const CamareroDirEntry **da = (const CamareroDirEntry **) a;
-	const CamareroDirEntry **db = (const CamareroDirEntry **) b;
+    const CamareroDirEntry **da = (const CamareroDirEntry **) a;
+    const CamareroDirEntry **db = (const CamareroDirEntry **) b;
 
-	return g_strcmp0((*da)->name, (*db)->name);
+    return g_strcmp0((*da)->name, (*db)->name);
 }
 
 
