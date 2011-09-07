@@ -414,20 +414,21 @@ camarero_signal_end (int signal)
 
 static int
 camarero_usage() {
-	g_printf(
-		"Usage: " PACKAGE_NAME " [OPTION]... FOLDER\n"
-		"Where OPTION is one of:\n"
-		"   -c, --ssl-cert=FILE   the SSL certificate\n"
-		"   -k, --ssk-key=FILE    the SSL private key\n"
-		"   -a, --auth=METHOD     the authorization method to use: digest (default) or basic\n"
-		"   -u, --username=USER   username that clients have to provide for connecting\n"
-		"   -P, --password=PWD    password that clients have to provide for connecting\n"
-		"   -j, --jail            only serve files that are under the root folder\n"
-		"   -p, --port=PORT       the server's port (pass 'random' for a random port)\n"
-		"   -v, --version         show the program's version\n"
-		"   -h, --help            print this help message\n"
-	);
-	return 1;
+    g_printf(
+        "Usage: " PACKAGE_NAME " [OPTION]... FOLDER\n"
+        "Where OPTION is one of:\n"
+        "   -s, --show-address    show the URLs where the server can be reached\n"
+        "   -c, --ssl-cert=FILE   the SSL certificate\n"
+        "   -k, --ssk-key=FILE    the SSL private key\n"
+        "   -a, --auth=METHOD     the authorization method to use: digest (default) or basic\n"
+        "   -u, --username=USER   username that clients have to provide for connecting\n"
+        "   -P, --password=PWD    password that clients have to provide for connecting\n"
+        "   -j, --jail            only serve files that are under the root folder\n"
+        "   -p, --port=PORT       the server's port (pass 'random' for a random port)\n"
+        "   -v, --version         show the program's version\n"
+        "   -h, --help            print this help message\n"
+    );
+    return 1;
 }
 
 
@@ -450,15 +451,16 @@ main (int argc, char ** argv) {
     int exit_value = 0;
 
     struct option longopts [] = {
-        { "ssl-cert",   required_argument, NULL, 'c' },
-        { "ssl-key",    required_argument, NULL, 'k' },
-        { "auth",       required_argument, NULL, 'a' },
-        { "username",   required_argument, NULL, 'u' },
-        { "password",   required_argument, NULL, 'P' },
-        { "jail",       no_argument,       NULL, 'j' },
-        { "port",       required_argument, NULL, 'p' },
-        { "help",       no_argument,       NULL, 'h' },
-        { "version",    no_argument,       NULL, 'v' },
+        { "show-address", no_argument,       NULL, 's' },
+        { "ssl-cert",     required_argument, NULL, 'c' },
+        { "ssl-key",      required_argument, NULL, 'k' },
+        { "auth",         required_argument, NULL, 'a' },
+        { "username",     required_argument, NULL, 'u' },
+        { "password",     required_argument, NULL, 'P' },
+        { "jail",         no_argument,       NULL, 'j' },
+        { "port",         required_argument, NULL, 'p' },
+        { "help",         no_argument,       NULL, 'h' },
+        { "version",      no_argument,       NULL, 'v' },
         { NULL, 0, NULL, 0 },
     };
 
@@ -466,10 +468,14 @@ main (int argc, char ** argv) {
     gboolean auth_digest = TRUE;
     gchar *ssl_cert = NULL;
     gchar *ssl_key = NULL;
+    gboolean show_addresses = FALSE;
     int rc;
-    while ( (rc = getopt_long(argc, argv, "c:k:a:u:P:jp:hv", longopts, NULL)) != -1 ) {
+    while ( (rc = getopt_long(argc, argv, "s:k:a:u:P:jp:hv", longopts, NULL)) != -1 ) {
         switch (rc) {
-            case 'c':
+            case 's':
+                show_addresses = TRUE;
+            break;
+
                     if (optarg == NULL) {
                         g_printf("Missing SSL certificate\n");
                         goto FAIL;
@@ -673,33 +679,35 @@ main (int argc, char ** argv) {
 
 
     // Print the URLs that can be used to reach this server
-    g_printf("Server is reachable at the following URLs:\n");
-    struct ifaddrs *if_addrs = NULL;
-    getifaddrs(&if_addrs);
-    const char *format = soup_server_is_https(APP.server) ? "  https://%s:%d/n" : "  http://%s:%d/\n";
-    GHashTable *seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-    for (struct ifaddrs *ifa = if_addrs; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr->sa_family == AF_INET) {
-            // IP4
-            char address[INET_ADDRSTRLEN];
-            struct in_addr *addr = &((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
-            inet_ntop(AF_INET, addr, address, INET_ADDRSTRLEN);
-            struct hostent *host = gethostbyaddr(addr, INET_ADDRSTRLEN, ifa->ifa_addr->sa_family);
-            if (host != NULL && g_hash_table_lookup(seen, host->h_name) == NULL) {
-                gchar *name = g_strdup(host->h_name);
-                g_hash_table_insert(seen, name, name);
-                g_printf(format, name, port);
-            }
-            if (g_hash_table_lookup(seen, address) == NULL) {
-                gchar *name = g_strdup(address);
-                g_hash_table_insert(seen, name, name);
-                g_printf(format, name, port);
+    if (show_addresses) {
+        g_printf("Server is reachable at the following URLs:\n");
+        struct ifaddrs *if_addrs = NULL;
+        getifaddrs(&if_addrs);
+        const char *format = soup_server_is_https(APP.server) ? "  https://%s:%d/n" : "  http://%s:%d/\n";
+        GHashTable *seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+        for (struct ifaddrs *ifa = if_addrs; ifa != NULL; ifa = ifa->ifa_next) {
+            if (ifa->ifa_addr->sa_family == AF_INET) {
+                // IP4
+                char address[INET_ADDRSTRLEN];
+                struct in_addr *addr = &((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
+                inet_ntop(AF_INET, addr, address, INET_ADDRSTRLEN);
+                struct hostent *host = gethostbyaddr(addr, INET_ADDRSTRLEN, ifa->ifa_addr->sa_family);
+                if (host != NULL && g_hash_table_lookup(seen, host->h_name) == NULL) {
+                    gchar *name = g_strdup(host->h_name);
+                    g_hash_table_insert(seen, name, name);
+                    g_printf(format, name, port);
+                }
+                if (g_hash_table_lookup(seen, address) == NULL) {
+                    gchar *name = g_strdup(address);
+                    g_hash_table_insert(seen, name, name);
+                    g_printf(format, name, port);
+                }
             }
         }
-    }
-    g_hash_table_unref(seen);
-    if (if_addrs != NULL) {
-        freeifaddrs(if_addrs);
+        g_hash_table_unref(seen);
+        if (if_addrs != NULL) {
+            freeifaddrs(if_addrs);
+        }
     }
 
     APP.mime_types = camarero_get_mime_types();
