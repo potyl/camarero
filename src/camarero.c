@@ -49,11 +49,13 @@
 #   define g_format_size g_format_size_for_display
 #endif
 
+#define CHUNK_SIZE 5 * 1024 * 1024
 
 typedef struct _CamareroMemmap {
     void   *mem;
     size_t length;
     int    fd;
+    size_t refcount;
 } CamareroMemmap;
 
 
@@ -106,6 +108,7 @@ camarero_app_free () {
 static void
 camarero_memmap_free (gpointer data) {
     CamareroMemmap *memmap = (CamareroMemmap *) data;
+    if (--memmap->refcount) return;
     munmap(memmap->mem, memmap->length);
     close(memmap->fd);
     g_slice_free(CamareroMemmap, memmap);
@@ -327,8 +330,9 @@ camarero_server_callback (
 
 
     // Use mmap for sending the file
-    CamareroMemmap *memmap = g_slice_new(CamareroMemmap);
-    memmap->length = st.st_size;
+    CamareroMemmap *memmap = g_slice_new0(CamareroMemmap);
+    len = memmap->length = st.st_size;
+    memmap->refcount = 1;
     memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     memmap->fd = fd;
     if (memmap->mem == MAP_FAILED) {
@@ -339,15 +343,27 @@ camarero_server_callback (
         goto DONE;
     }
 
-    SoupBuffer *buffer = soup_buffer_new_with_owner(
-        memmap->mem,
-        memmap->length,
-        memmap,
-        camarero_memmap_free
-    );
-    len = memmap->length;
-    soup_message_body_append_buffer(msg->response_body, buffer);
-    soup_buffer_free(buffer); // It's more of an unref() than a free()
+    // Turns out that we can send a DVD image in one single buffer. If we try to
+    // then gio will go nuts and will not like to send that many bytes. What we
+    // can do is to create small chunks with mmap array and to send them in
+    // separate buffers.
+    void *chunk_mem = memmap->mem;
+    for (size_t total_len = 0; total_len < memmap->length;) {
+        size_t chunk_len = (memmap->length - total_len);
+        if (chunk_len > CHUNK_SIZE) chunk_len = CHUNK_SIZE;
+
+        SoupBuffer *buffer = soup_buffer_new_with_owner(
+            chunk_mem,
+            chunk_len,
+            memmap,
+            camarero_memmap_free
+        );
+        chunk_mem += chunk_len;
+        total_len += chunk_len;
+
+        soup_message_body_append_buffer(msg->response_body, buffer);
+        soup_buffer_free(buffer); // It's more of an unref() than a free()
+    }
 
     status = SOUP_STATUS_OK;
 
