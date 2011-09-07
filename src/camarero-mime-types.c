@@ -64,10 +64,10 @@ camarero_get_mime_types () {
     g_hash_table_insert(mime_types, "bsh", "application/x-bsh");
     g_hash_table_insert(mime_types, "bz", "application/x-bzip");
     g_hash_table_insert(mime_types, "bz2", "application/x-bzip2");
-    g_hash_table_insert(mime_types, "c", "text/x-c");
-    g_hash_table_insert(mime_types, "c++", "text/x-c");
+    g_hash_table_insert(mime_types, "c", "text/plain");
+    g_hash_table_insert(mime_types, "c++", "text/plain");
     g_hash_table_insert(mime_types, "cat", "application/vnd.ms-pki.seccat");
-    g_hash_table_insert(mime_types, "cc", "text/x-c");
+    g_hash_table_insert(mime_types, "cc", "text/plain");
     g_hash_table_insert(mime_types, "ccad", "application/clariscad");
     g_hash_table_insert(mime_types, "cco", "application/x-cocoa");
     g_hash_table_insert(mime_types, "cdf", "application/cdf");
@@ -78,7 +78,7 @@ camarero_get_mime_types () {
     g_hash_table_insert(mime_types, "com", "application/octet-stream");
     g_hash_table_insert(mime_types, "conf", "text/plain");
     g_hash_table_insert(mime_types, "cpio", "application/x-cpio");
-    g_hash_table_insert(mime_types, "cpp", "text/x-c");
+    g_hash_table_insert(mime_types, "cpp", "text/plain");
     g_hash_table_insert(mime_types, "cpt", "application/mac-compactpro");
     g_hash_table_insert(mime_types, "crl", "application/pkcs-crl");
     g_hash_table_insert(mime_types, "crt", "application/pkix-cert");
