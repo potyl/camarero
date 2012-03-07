@@ -8,7 +8,7 @@ LINKER=$(CC) $(LIBS)
 ifdef DEBUG
 	CFLAGS=-DDEBUG=1 $(CFLAGS_RAW)
 else
-    CFLAGS=$(CFLAGS_RAW)
+	CFLAGS=$(CFLAGS_RAW)
 endif
 
 
