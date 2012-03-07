@@ -1,8 +1,8 @@
-CC=gcc -O0 -g3 --std=c99
+CC=gcc -O0 -g3
 PKG_LIBS=libsoup-2.4
 CFLAGS_RAW = $(shell pkg-config --cflags $(PKG_LIBS))
 LIBS = $(shell pkg-config --libs $(PKG_LIBS))
-COMPILER=$(CC) $(CFLAGS)
+COMPILER=$(CC) --std=c99 $(CFLAGS)
 LINKER=$(CC) $(LIBS)
 
 ifdef DEBUG
