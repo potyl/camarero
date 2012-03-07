@@ -486,12 +486,13 @@ main (int argc, char ** argv) {
     gchar *ssl_key = NULL;
     gboolean show_addresses = FALSE;
     int rc;
-    while ( (rc = getopt_long(argc, argv, "s:k:a:u:P:jp:hv", longopts, NULL)) != -1 ) {
+    while ( (rc = getopt_long(argc, argv, "sc:k:a:u:P:jp:hv", longopts, NULL)) != -1 ) {
         switch (rc) {
             case 's':
                 show_addresses = TRUE;
             break;
 
+            case 'c':
                     if (optarg == NULL) {
                         g_printf("Missing SSL certificate\n");
                         goto FAIL;
