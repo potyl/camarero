@@ -12,7 +12,7 @@ else
 endif
 
 
-.PHONEY: all
+.PHONY: all
 all: camarero
 
 
@@ -28,7 +28,7 @@ camarero: src/camarero.o src/camarero-mime-types.o
 	$(LINKER) -o $@ $^
 
 
-.PHONEY: clean
+.PHONY: clean
 clean:
 	rm -f src/*.o
 	rm -f camarero
