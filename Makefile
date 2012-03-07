@@ -1,4 +1,4 @@
-CC=gcc -O0 -g3
+CC=clang -O0 -g3
 PKG_LIBS=libsoup-2.4
 CFLAGS_RAW = $(shell pkg-config --cflags $(PKG_LIBS))
 LIBS = $(shell pkg-config --libs $(PKG_LIBS))
