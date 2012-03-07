@@ -205,7 +205,7 @@ camarero_server_callback (
             goto DONE;
         }
 
-        // Try to serve an index.html, if thee's one
+        // Try to serve an index.html, if there's one
         gchar *index_path = g_build_filename(APP.root, path, "index.html", NULL);
         GStatBuf index_st;
         gboolean show_dir = FALSE;
