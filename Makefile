@@ -1,8 +1,8 @@
 CC=cc
 CCFLAGS=--O0 -g3
 PKG_LIBS=libsoup-2.4
-CFLAGS_RAW = $(shell pkg-config --cflags $(PKG_LIBS))
-LIBS = $(shell pkg-config --libs $(PKG_LIBS))
+CFLAGS_RAW=$(shell pkg-config --cflags $(PKG_LIBS))
+LIBS=$(shell pkg-config --libs $(PKG_LIBS))
 COMPILER=$(CC) --std=c99 $(CFLAGS)
 LINKER=$(CC) $(LIBS)
 
@@ -29,7 +29,10 @@ camarero: src/camarero.o src/camarero-mime-types.o
 	$(LINKER) -o $@ $^
 
 
+camarero-static: src/camarero.o src/camarero-mime-types.o
+	$(LINKER) -static -static-libgcc -o $@ $^ `pkg-config --static --libs $(PKG_LIBS)` -lpcre -lselinux
+
+
 .PHONY: clean
 clean:
-	rm -f src/*.o
-	rm -f camarero
+	rm -f camarero camarero-static src/*.o
