@@ -50,6 +50,15 @@
 #   define g_format_size g_format_size_for_display
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 24, 0)
+#   if defined (_MSC_VER) && !defined(_WIN64)
+typedef struct _stat32 GStatBuf;
+#   else
+typedef struct stat GStatBuf;
+#   endif
+#endif
+
+
 #define CHUNK_SIZE 5 * 1024 * 1024
 
 typedef struct _CamareroMemmap {
