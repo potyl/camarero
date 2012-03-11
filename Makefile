@@ -1,6 +1,6 @@
 CC=cc
 CCFLAGS=--O0 -g3
-PKG_LIBS=libsoup-2.4
+PKG_LIBS=libsoup-2.4 glib-2.0 gthread-2.0
 CFLAGS_RAW=$(shell pkg-config --cflags $(PKG_LIBS))
 LIBS=$(shell pkg-config --libs $(PKG_LIBS))
 COMPILER=$(CC) --std=c99 $(CFLAGS)
