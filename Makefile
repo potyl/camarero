@@ -29,8 +29,10 @@ camarero: src/camarero.o src/camarero-mime-types.o
 	$(LINKER) -o $@ $^
 
 
+ifneq ($(shell uname),Darwin)
 camarero-static: src/camarero.o src/camarero-mime-types.o
 	$(LINKER) -static -static-libgcc -o $@ $^ `pkg-config --static --libs $(PKG_LIBS)` -lpcre -lselinux
+endif
 
 
 .PHONY: clean
