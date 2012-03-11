@@ -46,7 +46,7 @@
 #include "camarero-mime-types.h"
 
 
-#if GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 30
+#if !GLIB_CHECK_VERSION(2, 30, 0)
 #   define g_format_size g_format_size_for_display
 #endif
 
