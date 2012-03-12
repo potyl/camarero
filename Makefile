@@ -2,9 +2,7 @@ CC=cc
 CC_OPT_FLAGS=-O0 -g3
 PKG_LIBS=libsoup-2.4 glib-2.0 gthread-2.0
 CFLAGS_RAW=$(shell pkg-config --cflags $(PKG_LIBS))
-LIBS=$(shell pkg-config --libs $(PKG_LIBS))
 COMPILER=$(CC) --std=c99 $(CC_OPT_FLAGS) $(CFLAGS)
-LINKER=$(CC) $(LIBS)
 
 ifdef DEBUG
 	CFLAGS=-DDEBUG=1 $(CFLAGS_RAW)
@@ -43,7 +41,7 @@ gen/camarero.h: res/camarero.gresource.xml $(RESOURCES)
 
 
 camarero: src/camarero.o src/camarero-mime-types.o gen/camarero.o
-	$(LINKER) -o $@ $^
+	$(CC) `pkg-config --libs $(PKG_LIBS)` -o $@ $^
 
 
 .PHONY: gdb
