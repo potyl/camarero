@@ -13,6 +13,9 @@ else
 endif
 
 
+RESOURCES=res/favicon.ico
+
+
 .PHONY: all
 all: camarero
 
@@ -25,7 +28,21 @@ src/camarero.o: src/camarero.c src/config.h
 	$(COMPILER) -Isrc -c -o $@ $<
 
 
-camarero: src/camarero.o src/camarero-mime-types.o
+gen/camarero.o:  gen/camarero.c  gen/camarero.h
+	$(COMPILER) -Isrc -c -o $@ $<
+
+
+gen/camarero.c: res/camarero.gresource.xml $(RESOURCES)
+	-mkdir gen
+	glib-compile-resources --target=$@ --generate-source --c-name camarero $<
+
+
+gen/camarero.h: res/camarero.gresource.xml $(RESOURCES)
+	-mkdir gen
+	glib-compile-resources --target=$@ --generate-header --c-name camarero $<
+
+
+camarero: src/camarero.o src/camarero-mime-types.o gen/camarero.o
 	$(LINKER) -o $@ $^
 
 
