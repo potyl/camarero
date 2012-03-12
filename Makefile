@@ -59,3 +59,4 @@ endif
 .PHONY: clean
 clean:
 	rm -f camarero camarero-static src/*.o
+	rm -rf gen/
