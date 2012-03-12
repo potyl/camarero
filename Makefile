@@ -31,12 +31,12 @@ gen/camarero.o:  gen/camarero.c  gen/camarero.h
 
 
 gen/camarero.c: res/camarero.gresource.xml $(RESOURCES)
-	-mkdir gen
+	-[ -d gen ] || mkdir gen
 	glib-compile-resources --target=$@ --generate-source --c-name camarero $<
 
 
 gen/camarero.h: res/camarero.gresource.xml $(RESOURCES)
-	-mkdir gen
+	- [ -d gen ] || mkdir gen
 	glib-compile-resources --target=$@ --generate-header --c-name camarero $<
 
 
