@@ -52,7 +52,7 @@ gdb: camarero
 
 ifneq ($(shell uname),Darwin)
 camarero-static: src/camarero.o src/camarero-mime-types.o
-	$(LINKER) -static -static-libgcc -o $@ $^ `pkg-config --static --libs $(PKG_LIBS)` -lpcre -lselinux
+	$(CC) -static -static-libgcc -o $@ $^ `pkg-config --static --libs $(PKG_LIBS)` -lpcre -lselinux
 endif
 
 
