@@ -21,25 +21,25 @@ src/camarero-mime-types.o: src/camarero-mime-types.c src/camarero-mime-types.h
 	$(COMPILER) -Isrc -c -o $@ $<
 
 
-src/camarero.o: src/camarero.c src/config.h
+src/camarero.o: src/camarero.c src/config.h gen/camarero-resources.h
 	$(COMPILER) -Isrc -c -o $@ $<
 
 
-gen/camarero.o:  gen/camarero.c  gen/camarero.h
+gen/camarero-resources.o: gen/camarero-resources.c gen/camarero-resources.h
 	$(COMPILER) -Isrc -c -o $@ $<
 
 
-gen/camarero.c: res/camarero.gresource.xml $(RESOURCES)
+gen/camarero-resources.c: res/camarero.gresource.xml $(RESOURCES)
 	-[ -d gen ] || mkdir gen
 	glib-compile-resources --target=$@ --generate-source --c-name camarero $<
 
 
-gen/camarero.h: res/camarero.gresource.xml $(RESOURCES)
+gen/camarero-resources.h: res/camarero.gresource.xml $(RESOURCES)
 	- [ -d gen ] || mkdir gen
 	glib-compile-resources --target=$@ --generate-header --c-name camarero $<
 
 
-camarero: src/camarero.o src/camarero-mime-types.o gen/camarero.o
+camarero: src/camarero.o src/camarero-mime-types.o gen/camarero-resources.o
 	$(CC) `pkg-config --libs $(PKG_LIBS)` -o $@ $^
 
 
@@ -50,7 +50,7 @@ gdb: camarero
 
 
 ifneq ($(shell uname),Darwin)
-camarero-static: src/camarero.o src/camarero-mime-types.o
+camarero-static: src/camarero.o src/camarero-mime-types.o gen/camarero-resources.o
 	$(CC) -static -static-libgcc -o $@ $^ `pkg-config --static --libs $(PKG_LIBS)` -lpcre -lselinux
 endif
 
