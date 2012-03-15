@@ -2,13 +2,12 @@ CC=cc
 CC_OPT_FLAGS=-O0 -g3
 PKG_LIBS=libsoup-2.4 glib-2.0 gthread-2.0
 CFLAGS_RAW=$(shell pkg-config --cflags $(PKG_LIBS))
-COMPILER=$(CC) --std=c99 $(CC_OPT_FLAGS) $(CFLAGS)
-
 ifdef DEBUG
 	CFLAGS=-DDEBUG=1 $(CFLAGS_RAW)
 else
 	CFLAGS=$(CFLAGS_RAW)
 endif
+COMPILER=$(CC) --std=c99 $(CC_OPT_FLAGS) $(CFLAGS) -Igen
 
 
 RESOURCES=res/favicon.ico
