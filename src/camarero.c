@@ -44,6 +44,7 @@
 
 #include "config.h"
 #include "camarero-mime-types.h"
+#include "camarero-resources.h"
 
 
 #if !GLIB_CHECK_VERSION(2, 30, 0)
@@ -86,6 +87,7 @@ typedef struct _CamareroApp {
     gchar       *username;
     gchar       *password;
     GHashTable  *mime_types;
+    GResource   *gresource;
 } CamareroApp;
 CamareroApp APP = {0,};
 
@@ -113,6 +115,12 @@ camarero_app_free () {
         g_hash_table_unref(APP.mime_types);
         APP.mime_types = NULL;
     }
+
+
+    if (APP.gresource != NULL) {
+        g_resource_unref(APP.gresource);
+        APP.gresource = NULL;
+    }
 }
 
 
@@ -139,8 +147,24 @@ camarero_favicon_callback (
     const char *path, GHashTable *query,
     SoupClientContext *context, gpointer data
 ) {
+    GError *error = NULL;
+    GBytes *bytes = g_resource_lookup_data(APP.gresource, "/camarero/icons/favicon.ico", G_RESOURCE_LOOKUP_FLAGS_NONE, &error);
+    if (bytes != NULL) {
+        soup_message_set_status(msg, SOUP_STATUS_OK);
+        gsize size;
+        gconstpointer *data = g_bytes_get_data(bytes, &size);
+        soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, data, size);
+        g_bytes_unref(bytes);
+
+        //gchar *size_str = g_format_size(size);
+        //g_printf("%3d %s (%s)\n", SOUP_STATUS_OK, path, size_str);
+        //g_free(size_str);
+        return;
+    }
+
     soup_message_set_status(msg, SOUP_STATUS_NOT_FOUND);
     soup_message_body_append(msg->response_body, SOUP_MEMORY_STATIC, "", 0);
+    //g_printf("%3d %s (0 bytes)\n", SOUP_STATUS_NOT_FOUND, path);
 }
 
 
@@ -298,7 +322,7 @@ camarero_server_callback (
             // Build an HTML page with the folder contents
             GString *buffer = g_string_new_len(NULL, 4096);
             content_type = "text/html";
-            g_string_append_printf(buffer, "<html><head><title>Dir %s</title></head><body>\n", path);
+            g_string_append_printf(buffer, "<html><head><title>Dir %s</title><link rel='shortcut icon' href='/favicon.ico'></head><body>\n", path);
             g_string_append_printf(buffer, "<h1>Dir %s</h1>\n", path);
 
             if (array->len) {
@@ -646,6 +670,8 @@ main (int argc, char ** argv) {
 
     g_thread_init(NULL);
     g_type_init();
+
+    APP.gresource = camarero_get_resource();
 
     signal(SIGTERM, camarero_signal_end);
     signal(SIGQUIT, camarero_signal_end);
