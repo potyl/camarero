@@ -152,7 +152,7 @@ camarero_favicon_callback (
     if (bytes != NULL) {
         soup_message_set_status(msg, SOUP_STATUS_OK);
         gsize size;
-        gconstpointer *data = g_bytes_get_data(bytes, &size);
+        gconstpointer data = g_bytes_get_data(bytes, &size);
         soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, data, size);
         g_bytes_unref(bytes);
 
