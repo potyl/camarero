@@ -320,10 +320,20 @@ camarero_server_callback (
 
 
             // Build an HTML page with the folder contents
-            GString *buffer = g_string_new_len(NULL, 4096);
             content_type = "text/html";
-            g_string_append_printf(buffer, "<html><head><title>Dir %s</title><link rel='shortcut icon' href='/favicon.ico'></head><body>\n", path);
-            g_string_append_printf(buffer, "<h1>Dir %s</h1>\n", path);
+            char *template = "<html><head><title>Dir <? path ?></title><link rel='shortcut icon' href='/favicon.ico'></head><body><h1>Dir <? path ?></h1><? body ?></body></html>\n\n";
+
+            GString *buffer = g_string_sized_new(4096);
+            gchar *token = "<? body ?>";
+            gchar *place_holder = g_strstr_len(template, -1, "<? body ?>");
+            if (place_holder != NULL) {
+                size_t len = place_holder - template;
+                g_printf("Len is %d\n", len);
+                g_string_append_len(buffer,template, place_holder - template);
+            }
+            else {
+                g_printf("token: %s not found!\n", token);
+            }
 
             if (array->len) {
                 g_string_append_printf(buffer, "<p>%d files</p>\n<ul>\n", array->len);
@@ -353,7 +363,9 @@ camarero_server_callback (
             }
             g_ptr_array_free(array, TRUE);
 
-            g_string_append(buffer, "</body></html>\n");
+            if (place_holder != NULL) {
+                g_string_append(buffer, place_holder + strlen(token));
+            }
 
             soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, buffer->str, buffer->len);
             len = buffer->len;
