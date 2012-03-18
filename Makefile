@@ -17,40 +17,42 @@ RESOURCES=res/favicon.ico
 all: camarero
 
 
-src/camarero-mime-types.o: src/camarero-mime-types.c src/camarero-mime-types.h
-	$(COMPILER) -Isrc -c -o $@ $<
-
-
-src/camarero.o: src/camarero.c src/config.h gen/camarero-resources.h
-	$(COMPILER) -Isrc -c -o $@ $<
-
-
-gen/camarero-resources.o: gen/camarero-resources.c gen/camarero-resources.h
-	$(COMPILER) -Isrc -c -o $@ $<
-
-
 gen/camarero-resources.c: res/camarero.gresource.xml $(RESOURCES)
-	-[ -d gen ] || mkdir gen
+	@-[ -d gen ] || mkdir gen
 	glib-compile-resources --target=$@ --generate-source --c-name camarero $<
 
-
 gen/camarero-resources.h: res/camarero.gresource.xml $(RESOURCES)
-	- [ -d gen ] || mkdir gen
+	@-[ -d gen ] || mkdir gen
 	glib-compile-resources --target=$@ --generate-header --c-name camarero $<
 
+gen/camarero-mime-types.o: src/camarero-mime-types.c src/camarero-mime-types.h
+	@-[ -d gen ] || mkdir gen
+	$(COMPILER) -Isrc -c -o $@ $<
 
-camarero: src/camarero.o src/camarero-mime-types.o gen/camarero-resources.o
+gen/camarero.o: src/camarero.c src/config.h gen/camarero-resources.h
+	@-[ -d gen ] || mkdir gen
+	$(COMPILER) -Isrc -c -o $@ $<
+
+gen/camarero-resources.o: gen/camarero-resources.c gen/camarero-resources.h
+	@-[ -d gen ] || mkdir gen
+	$(COMPILER) -Isrc -c -o $@ $<
+
+
+.PHONY: camarero
+camarero: gen/camarero
+gen/camarero: gen/camarero.o gen/camarero-mime-types.o gen/camarero-resources.o
 	$(CC) `pkg-config --libs $(PKG_LIBS)` -o $@ $^
 
 
 .PHONY: gdb
-gdb: camarero
+gdb: gen/camarero
 	G_DEBUG=fatal_warnings gdb ./$<
 
 
-
 ifneq ($(shell uname),Darwin)
-camarero-static: src/camarero.o src/camarero-mime-types.o gen/camarero-resources.o
+.PHONY: static
+static: gen/camarero-static
+gen/camarero-static: gen/camarero.o gen/camarero-mime-types.o gen/camarero-resources.o
 	$(CC) -static -static-libgcc -o $@ $^ `pkg-config --static --libs $(PKG_LIBS)` -lpcre -lselinux
 endif
 
@@ -58,4 +60,4 @@ endif
 .PHONY: clean
 clean:
 	rm -f camarero camarero-static src/*.o
-	rm -rf gen/
+	-[ -d gen ] && rm -rf gen/*
