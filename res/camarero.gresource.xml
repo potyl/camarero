@@ -2,5 +2,6 @@
 <gresources>
   <gresource prefix="/camarero">
     <file alias="icons/favicon.ico">res/favicon.ico</file>
+    <file alias="html/index.html">res/index.html</file>
   </gresource>
 </gresources>

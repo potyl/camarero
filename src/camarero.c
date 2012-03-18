@@ -196,6 +196,18 @@ camarero_memmap_message_write (SoupMessage *msg, SoupBuffer *buffer, gpointer da
 }
 
 
+static gboolean
+camarero_regexp_callback (const GMatchInfo *info, GString *buffer, gpointer data) {
+    gchar *match = g_match_info_fetch(info, 0);
+    gchar *value = g_hash_table_lookup((GHashTable *)data, match);
+    if (value == NULL) value = "";
+    g_string_append(buffer, value);
+    g_free(match);
+
+    return FALSE;
+}
+
+
 static void
 camarero_server_callback (
     SoupServer *server, SoupMessage *msg,
@@ -320,21 +332,8 @@ camarero_server_callback (
 
 
             // Build an HTML page with the folder contents
-            content_type = "text/html";
-            char *template = "<html><head><title>Dir <? path ?></title><link rel='shortcut icon' href='/favicon.ico'></head><body><h1>Dir <? path ?></h1><? body ?></body></html>\n\n";
 
             GString *buffer = g_string_sized_new(4096);
-            gchar *token = "<? body ?>";
-            gchar *place_holder = g_strstr_len(template, -1, "<? body ?>");
-            if (place_holder != NULL) {
-                size_t len = place_holder - template;
-                g_printf("Len is %d\n", len);
-                g_string_append_len(buffer,template, place_holder - template);
-            }
-            else {
-                g_printf("token: %s not found!\n", token);
-            }
-
             if (array->len) {
                 g_string_append_printf(buffer, "<p>%d files</p>\n<ul>\n", array->len);
                 for (guint i = 0; i < array->len; ++i) {
@@ -363,14 +362,37 @@ camarero_server_callback (
             }
             g_ptr_array_free(array, TRUE);
 
-            if (place_holder != NULL) {
-                g_string_append(buffer, place_holder + strlen(token));
+
+            GBytes *bytes = g_resource_lookup_data(APP.gresource, "/camarero/html/index.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+            if (bytes == NULL) {
+                g_string_free(buffer, TRUE);
+                error_str = g_strdup_printf("Can't find document template: %s", "/camarero/html/index.html");
+                status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
+                goto DONE;
             }
 
-            soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, buffer->str, buffer->len);
-            len = buffer->len;
-            status = SOUP_STATUS_OK;
+            content_type = "text/html";
+            gchar *template = NULL;
+            gsize size;
+            gconstpointer data = g_bytes_get_data(bytes, &size);
+            template = g_strndup(data, size);
+            g_bytes_unref(bytes);
+
+            // Create the document's body with all variable interpolated
+            GHashTable *vars = g_hash_table_new(g_str_hash, g_str_equal);
+            g_hash_table_insert(vars, "$body", buffer->str);
+            g_hash_table_insert(vars, "$path", (gpointer) path);
+
+            GRegex *regex = g_regex_new("\\$\\w+", 0, 0, NULL);
+            gchar *doc = g_regex_replace_eval(regex, template, -1, 0, 0, camarero_regexp_callback, vars, NULL);
+            g_free(template);
+            g_hash_table_destroy(vars);
             g_string_free(buffer, FALSE);
+            g_regex_unref(regex);
+
+            len = strlen(doc);
+            soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, doc, len);
+            status = SOUP_STATUS_OK;
 
             goto DONE;
         }
