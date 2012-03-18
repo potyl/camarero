@@ -10,7 +10,7 @@ endif
 COMPILER=$(CC) --std=c99 $(CC_OPT_FLAGS) $(CFLAGS) -Igen
 
 
-RESOURCES=res/favicon.ico
+RESOURCES=res/favicon.ico res/index.html
 
 
 .PHONY: all
