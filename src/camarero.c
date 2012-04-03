@@ -353,9 +353,9 @@ camarero_server_callback (
         goto DONE;
     }
 
-    // Turns out that we can send a DVD image in one single buffer. If we try to
+    // Turns out that we can't send a DVD image in one single buffer. If we try to
     // then gio will go nuts and will not like to send that many bytes. What we
-    // can do is to create small chunks with mmap array and to send them in
+    // can do is to create small chunks with a mmap array and to send them in
     // separate buffers.
     void *chunk_mem = memmap->mem;
     for (size_t total_len = 0; total_len < memmap->length;) {
