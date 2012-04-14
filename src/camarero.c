@@ -63,9 +63,10 @@ typedef struct stat GStatBuf;
 
 typedef struct _CamareroMemmap {
     void   *mem;
+    void   *ptr;
     size_t length;
     int    fd;
-    size_t refcount;
+    size_t offset;
 } CamareroMemmap;
 
 
@@ -116,12 +117,10 @@ camarero_app_free () {
 
 
 static void
-camarero_memmap_free (gpointer data) {
-    CamareroMemmap *memmap = (CamareroMemmap *) data;
-    if (--memmap->refcount) return;
-    munmap(memmap->mem, memmap->length);
+camarero_memmap_free (CamareroMemmap *memmap) {
+    if (memmap->mem != NULL) munmap(memmap->mem, memmap->length);
     close(memmap->fd);
-    g_slice_free(CamareroMemmap, memmap);
+    g_free(memmap);
 }
 
 
@@ -146,6 +145,34 @@ camarero_favicon_callback (
 
 
 static void
+camarero_memmap_message_free (SoupMessage *msg, gpointer data) {
+    CamareroMemmap *memmap = (CamareroMemmap *) data;
+    camarero_memmap_free(memmap);
+    g_object_unref(msg);
+}
+
+
+static void
+camarero_memmap_message_write (SoupMessage *msg, SoupBuffer *buffer, gpointer data) {
+    CamareroMemmap *memmap = (CamareroMemmap *) data;
+
+    size_t chunk_len = (memmap->length - memmap->offset);
+    if (chunk_len == 0) {
+        soup_message_body_complete(msg->response_body);
+        soup_server_unpause_message(APP.server, msg);
+        return;
+    }
+    else if (chunk_len > CHUNK_SIZE) {
+        chunk_len = CHUNK_SIZE;
+    }
+    soup_message_body_append(msg->response_body, SOUP_MEMORY_STATIC, memmap->ptr, chunk_len);
+    memmap->ptr += chunk_len;
+    memmap->offset += chunk_len;
+    soup_server_unpause_message(APP.server, msg);
+}
+
+
+static void
 camarero_server_callback (
     SoupServer *server, SoupMessage *msg,
     const char *path, GHashTable *query,
@@ -155,6 +182,8 @@ camarero_server_callback (
     size_t len = 0;
     gchar *error_str = NULL;
     const gchar *content_type = NULL;
+    gboolean is_paused = FALSE;
+
 
     gchar *fpath = g_build_filename(APP.root, path, NULL);
     if (APP.jail) {
@@ -340,40 +369,30 @@ camarero_server_callback (
 
 
     // Use mmap for sending the file
-    CamareroMemmap *memmap = g_slice_new0(CamareroMemmap);
+    CamareroMemmap *memmap = g_new0(CamareroMemmap, 1);
     len = memmap->length = st.st_size;
-    memmap->refcount = 1;
-    memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    memmap->offset = 0;
+    memmap->ptr = memmap->mem = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     memmap->fd = fd;
     if (memmap->mem == MAP_FAILED) {
-        close(fd);
-        g_slice_free(CamareroMemmap, memmap);
+        memmap->mem = NULL;
+        camarero_memmap_free(memmap);
         error_str = g_strdup_printf("Can't mmap %s; %s", fpath, g_strerror(errno));
         status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
         goto DONE;
     }
 
-    // Turns out that we can't send a DVD image in one single buffer. If we try to
-    // then gio will go nuts and will not like to send that many bytes. What we
-    // can do is to create small chunks with a mmap array and to send them in
-    // separate buffers.
-    void *chunk_mem = memmap->mem;
-    for (size_t total_len = 0; total_len < memmap->length;) {
-        size_t chunk_len = (memmap->length - total_len);
-        if (chunk_len > CHUNK_SIZE) chunk_len = CHUNK_SIZE;
-
-        SoupBuffer *buffer = soup_buffer_new_with_owner(
-            chunk_mem,
-            chunk_len,
-            memmap,
-            camarero_memmap_free
-        );
-        chunk_mem += chunk_len;
-        total_len += chunk_len;
-
-        soup_message_body_append_buffer(msg->response_body, buffer);
-        soup_buffer_free(buffer); // It's more of an unref() than a free()
-    }
+    // We can't send a big file  (a DVD image) in one single buffer. If we try
+    // to then gio will not like to send that many bytes. What we will do
+    // instead is to use callbacks to send the data chunk by chunk. As soon as
+    // we write a chunk down the wire we will write the next chunk. This is
+    // handled through the signal "wrote-body-data".
+    soup_message_headers_set_content_length(msg->response_headers, memmap->length);
+    //soup_message_headers_set_encoding(msg->response_headers, SOUP_ENCODING_CHUNKED);
+    is_paused = TRUE;
+    soup_message_body_set_accumulate(msg->response_body, FALSE);
+    g_signal_connect(G_OBJECT(msg), "wrote-body-data", G_CALLBACK(camarero_memmap_message_write), memmap);
+    g_signal_connect(G_OBJECT(msg), "finished", G_CALLBACK(camarero_memmap_message_free), memmap);
 
     status = SOUP_STATUS_OK;
 
@@ -391,11 +410,18 @@ camarero_server_callback (
             g_printf("%3d %s (%s) - %s\n", status, path, size, error_str);
             g_free(size);
         }
-        else {
+
+        if (is_paused) {
             gchar *size = g_format_size(len);
             g_printf("%3d %s (%s)\n", status, path, size);
             g_free(size);
+
+            g_object_ref(msg);
+            soup_server_pause_message(APP.server, msg);
+            camarero_memmap_message_write(msg, NULL, memmap);
+            soup_server_unpause_message(APP.server, msg);
         }
+
         ++APP.requests;
         APP.bytes += len;
 }
