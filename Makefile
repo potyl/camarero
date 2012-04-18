@@ -41,7 +41,7 @@ gen/camarero-resources.o: gen/camarero-resources.c gen/camarero-resources.h
 .PHONY: camarero
 camarero: gen/camarero
 gen/camarero: gen/camarero.o gen/camarero-mime-types.o gen/camarero-resources.o
-	$(CC) `pkg-config --libs $(PKG_LIBS)` -o $@ $^
+	$(CC) -o $@ $^ `pkg-config --libs $(PKG_LIBS)`
 
 
 .PHONY: gdb
