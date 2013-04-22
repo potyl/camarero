@@ -799,7 +799,7 @@ main (int argc, char ** argv) {
         const char *format = soup_server_is_https(APP.server) ? "  https://%s:%d/n" : "  http://%s:%d/\n";
         GHashTable *seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
         for (struct ifaddrs *ifa = if_addrs; ifa != NULL; ifa = ifa->ifa_next) {
-            if (ifa->ifa_addr->sa_family == AF_INET) {
+            if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == AF_INET) {
                 // IP4
                 char address[INET_ADDRSTRLEN];
                 struct in_addr *addr = &((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
