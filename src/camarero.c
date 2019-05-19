@@ -707,9 +707,6 @@ main (int argc, char ** argv) {
     }
     APP.root_len = strlen(APP.root);
 
-    g_thread_init(NULL);
-    g_type_init();
-
     APP.gresource = camarero_get_resource();
 
     signal(SIGTERM, camarero_signal_end);
