@@ -142,6 +142,7 @@ camarero_array_sort_dir_entry (gconstpointer a, gconstpointer b) {
     return g_strcmp0((*da)->name, (*db)->name);
 }
 
+
 static void camarero_log_access(int status, const char *path, size_t len, const gchar *error_str) {
     gchar *size = g_format_size(len);
     if (error_str) {
@@ -152,6 +153,7 @@ static void camarero_log_access(int status, const char *path, size_t len, const 
     }
     g_free(size);
 }
+
 
 static void
 camarero_favicon_callback (
@@ -343,7 +345,6 @@ camarero_server_callback (
 
 
             // Build an HTML page with the folder contents
-
             GString *buffer = g_string_sized_new(4096);
             if (array->len) {
                 g_string_append_printf(buffer, "<p>%d files</p>\n<ul>\n", array->len);
@@ -453,13 +454,12 @@ camarero_server_callback (
         goto DONE;
     }
 
-    // We can't send a big file  (a DVD image) in one single buffer. If we try
+    // We can't send a big file (a DVD image) in one single buffer. If we try
     // to then gio will not like to send that many bytes. What we will do
     // instead is to use callbacks to send the data chunk by chunk. As soon as
     // we write a chunk down the wire we will write the next chunk. This is
     // handled through the signal "wrote-body-data".
     soup_message_headers_set_content_length(msg->response_headers, memmap->length);
-    //soup_message_headers_set_encoding(msg->response_headers, SOUP_ENCODING_CHUNKED);
     is_paused = TRUE;
     soup_message_body_set_accumulate(msg->response_body, FALSE);
     g_signal_connect(G_OBJECT(msg), "wrote-body-data", G_CALLBACK(camarero_memmap_message_write), memmap);
@@ -516,6 +516,7 @@ camarero_digest_auth_callback (
     return g_strdup(APP.password);
 }
 
+
 static void
 camarero_signal_end (int signal)
 {
@@ -526,6 +527,7 @@ camarero_signal_end (int signal)
 
     camarero_app_free();
 }
+
 
 static int
 camarero_usage() {
@@ -822,7 +824,6 @@ main (int argc, char ** argv) {
         g_printf("Can't start server; %s", error->message);
         g_error_free(error);
     }
-
 
     // Cleanup
     DONE:
