@@ -20,6 +20,8 @@
  * Boston, MA  02110-1301  USA
  */
 
+#define _XOPEN_SOURCE 500
+
 #include <libsoup/soup.h>
 #include <glib.h>
 #include <glib/gprintf.h>
