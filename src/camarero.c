@@ -142,6 +142,16 @@ camarero_array_sort_dir_entry (gconstpointer a, gconstpointer b) {
     return g_strcmp0((*da)->name, (*db)->name);
 }
 
+static void camarero_log_access(int status, const char *path, size_t len, const gchar *error_str) {
+    gchar *size = g_format_size(len);
+    if (error_str) {
+        g_printf("%3d %s (%s) - %s\n", status, path, size, error_str);
+    }
+    else {
+        g_printf("%3d %s (%s)\n", status, path, size);
+    }
+    g_free(size);
+}
 
 static void
 camarero_favicon_callback (
@@ -158,18 +168,14 @@ camarero_favicon_callback (
         soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, data, size);
         g_bytes_unref(bytes);
 
-        //gchar *size_str = g_format_size(size);
-        //g_printf("%3d %s (%s)\n", SOUP_STATUS_OK, path, size_str);
-        //g_free(size_str);
+        camarero_log_access(SOUP_STATUS_OK, path, size, NULL);
         return;
     }
 
-    g_printf("Couldn't find resource for favicon: %s; %s", path, error->message);
-    g_error_free(error);
-
     soup_message_set_status(msg, SOUP_STATUS_NOT_FOUND);
     soup_message_body_append(msg->response_body, SOUP_MEMORY_STATIC, "", 0);
-    //g_printf("%3d %s (0 bytes)\n", SOUP_STATUS_NOT_FOUND, path);
+    camarero_log_access(SOUP_STATUS_NOT_FOUND, path, 0, error->message);
+    g_error_free(error);
 }
 
 
@@ -373,6 +379,7 @@ camarero_server_callback (
                 g_string_free(buffer, TRUE);
                 error_str = g_strdup_printf("Can't find document template: %s", "/camarero/html/index.html");
                 status = SOUP_STATUS_INTERNAL_SERVER_ERROR;
+                camarero_log_access(status, path, strlen(error_str), NULL);
                 goto DONE;
             }
 
@@ -399,6 +406,7 @@ camarero_server_callback (
             soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, doc, len);
             status = SOUP_STATUS_OK;
 
+            camarero_log_access(status, path, len, NULL);
             goto DONE;
         }
     }
@@ -469,15 +477,11 @@ camarero_server_callback (
         if (error_str != NULL) {
             len = strlen(error_str);
             soup_message_body_append(msg->response_body, SOUP_MEMORY_TAKE, error_str, len);
-            gchar *size = g_format_size(len);
-            g_printf("%3d %s (%s) - %s\n", status, path, size, error_str);
-            g_free(size);
+            camarero_log_access(status, path, len, error_str);
         }
 
         if (is_paused) {
-            gchar *size = g_format_size(len);
-            g_printf("%3d %s (%s)\n", status, path, size);
-            g_free(size);
+            camarero_log_access(status, path, len, NULL);
 
             g_object_ref(msg);
             soup_server_pause_message(APP.server, msg);
