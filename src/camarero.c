@@ -512,8 +512,8 @@ camarero_digest_auth_callback (
     return g_strdup(APP.password);
 }
 
-static int
-camarero_shutdown_callback (gpointer data)
+static void
+camarero_signal_end (int signal)
 {
     g_printf("Server shutting down\n");
     if (g_main_loop_is_running(APP.loop)) {
@@ -521,13 +521,6 @@ camarero_shutdown_callback (gpointer data)
     }
 
     camarero_app_free();
-    return 0;
-}
-
-static void
-camarero_signal_end (int signal)
-{
-    g_idle_add(camarero_shutdown_callback, NULL);
 }
 
 static int
