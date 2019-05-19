@@ -33,16 +33,8 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <signal.h>
-#define __USE_BSD
-#include <stdlib.h>
 #include <getopt.h>
-#include <unistd.h>
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <ifaddrs.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 
 #include "config.h"
 #include "camarero-mime-types.h"
@@ -804,33 +796,14 @@ main (int argc, char ** argv) {
     // Print the URLs that can be used to reach this server
     if (show_addresses) {
         g_printf("Server is reachable at the following URLs:\n");
-        struct ifaddrs *if_addrs = NULL;
-        getifaddrs(&if_addrs);
-        const char *format = soup_server_is_https(APP.server) ? "  https://%s:%d/n" : "  http://%s:%d/\n";
-        GHashTable *seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-        for (struct ifaddrs *ifa = if_addrs; ifa != NULL; ifa = ifa->ifa_next) {
-            if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == AF_INET) {
-                // IP4
-                char address[INET_ADDRSTRLEN];
-                struct in_addr *addr = &((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
-                inet_ntop(AF_INET, addr, address, INET_ADDRSTRLEN);
-                struct hostent *host = gethostbyaddr(addr, INET_ADDRSTRLEN, ifa->ifa_addr->sa_family);
-                if (host != NULL && g_hash_table_lookup(seen, host->h_name) == NULL) {
-                    gchar *name = g_strdup(host->h_name);
-                    g_hash_table_insert(seen, name, name);
-                    g_printf(format, name, port);
-                }
-                if (g_hash_table_lookup(seen, address) == NULL) {
-                    gchar *name = g_strdup(address);
-                    g_hash_table_insert(seen, name, name);
-                    g_printf(format, name, port);
-                }
-            }
-        }
-        g_hash_table_unref(seen);
-        if (if_addrs != NULL) {
-            freeifaddrs(if_addrs);
-        }
+	    GSList *uris = soup_server_get_uris(APP.server);
+	    for (GSList *uri = uris; uri; uri = uri->next) {
+		    char *uri_string = soup_uri_to_string(uri->data, FALSE);
+		    g_printf("%s\n", uri_string);
+		    g_free(uri_string);
+		    soup_uri_free(uri->data);
+	    }
+	    g_slist_free(uris);
     }
 
     APP.mime_types = camarero_get_mime_types();
