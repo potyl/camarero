@@ -81,6 +81,7 @@ typedef struct _CamareroDirEntry {
 
 typedef struct _CamareroApp {
     SoupServer  *server;
+    GMainLoop   *loop;
     gchar       root [MAXPATHLEN + 1];
     size_t      root_len;
     gboolean    jail;
@@ -98,10 +99,17 @@ static void
 camarero_app_free () {
 
     if (APP.server != NULL) {
+        // No need to disconnect as the destructor will do it.
         g_object_unref(G_OBJECT(APP.server));
         APP.server = NULL;
     }
 
+    if (APP.loop != NULL) {
+        if (g_main_loop_is_running(APP.loop)) {
+            g_main_loop_quit(APP.loop);
+        }
+        APP.loop = NULL;
+    }
 
     if (APP.username != NULL) {
         g_free(APP.username);
@@ -512,20 +520,23 @@ camarero_digest_auth_callback (
     return g_strdup(APP.password);
 }
 
+static int
+camarero_shutdown_callback (gpointer data)
+{
+    g_printf("Server shutting down\n");
+    if (g_main_loop_is_running(APP.loop)) {
+        g_main_loop_quit(APP.loop);
+    }
+
+    camarero_app_free();
+    return 0;
+}
 
 static void
 camarero_signal_end (int signal)
 {
-    g_printf("Server shutting down\n");
-    if (APP.server != NULL) {
-        soup_server_quit(APP.server);
-        return;
-    }
-
-    camarero_app_free();
-    exit(0);
+    g_idle_add(camarero_shutdown_callback, NULL);
 }
-
 
 static int
 camarero_usage() {
@@ -579,7 +590,7 @@ main (int argc, char ** argv) {
         { NULL, 0, NULL, 0 },
     };
 
-    unsigned int port = 3000;
+    guint port = 3000;
     gboolean auth_digest = TRUE;
     gchar *ssl_cert = NULL;
     gchar *ssl_key = NULL;
@@ -717,7 +728,6 @@ main (int argc, char ** argv) {
     if (ssl_cert == NULL && ssl_key == NULL) {
         // HTTP server
         APP.server = soup_server_new(
-            SOUP_SERVER_PORT, port,
             SOUP_SERVER_SERVER_HEADER, PACKAGE_NAME "/" PACKAGE_VERSION,
             NULL
         );
@@ -725,7 +735,6 @@ main (int argc, char ** argv) {
     else if (ssl_cert != NULL && ssl_key != NULL) {
         // HTTPS SSL server
         APP.server = soup_server_new(
-            SOUP_SERVER_PORT, port,
             SOUP_SERVER_SERVER_HEADER, PACKAGE_NAME "/" PACKAGE_VERSION,
             SOUP_SERVER_SSL_CERT_FILE, ssl_cert,
             SOUP_SERVER_SSL_KEY_FILE,  ssl_key,
@@ -746,7 +755,6 @@ main (int argc, char ** argv) {
         g_printf("Failed to create the server\n");
         goto FAIL;
     }
-    port = soup_server_get_port(APP.server);
 
 
     // Check if the pages have to be protected by a username/password
@@ -829,12 +837,21 @@ main (int argc, char ** argv) {
 
     // Run the server
     g_printf("Starting server for document root: %s\n", APP.root);
-    soup_server_run(APP.server);
+    GError *error = NULL;
+    gboolean started = soup_server_listen_all(APP.server, port, 0, &error);
+    if (started) {
+        APP.loop = g_main_loop_new(NULL, TRUE);
+        g_main_loop_run(APP.loop);
 
-    // Show some stats
-    gchar *size = g_format_size(APP.bytes);
-    g_printf("Served %d requests (%s)\n", APP.requests, size);
-    g_free(size);
+        // Show some stats
+        gchar *size = g_format_size(APP.bytes);
+        g_printf("Served %d requests (%s)\n", APP.requests, size);
+        g_free(size);
+    }
+    else {
+        g_printf("Can't start server; %s", error->message);
+        g_error_free(error);
+    }
 
 
     // Cleanup
