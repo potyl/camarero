@@ -164,6 +164,9 @@ camarero_favicon_callback (
         return;
     }
 
+    g_printf("Couldn't find resource for favicon: %s; %s", path, error->message);
+    g_error_free(error);
+
     soup_message_set_status(msg, SOUP_STATUS_NOT_FOUND);
     soup_message_body_append(msg->response_body, SOUP_MEMORY_STATIC, "", 0);
     //g_printf("%3d %s (0 bytes)\n", SOUP_STATUS_NOT_FOUND, path);
